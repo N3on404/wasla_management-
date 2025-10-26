@@ -48,8 +48,8 @@
   "publish": [
     {
       "provider": "github",
-      "owner": "Samer-Gassouma",
-      "repo": "wasla",
+      "owner": "N3on404",
+      "repo": "wasla_management-",
       "releaseType": "release"
     }
   ]

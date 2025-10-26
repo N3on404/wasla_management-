@@ -51,6 +51,6 @@
   "main": "dist-electron/main.js",
   "repository": {
     "type": "git",
-    "url": "git@github.com:Samer-Gassouma/wasla.git"
+    "url": "git@github.com:N3on404/wasla_management-.git"
   }
 }
