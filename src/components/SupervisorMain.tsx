@@ -752,39 +752,64 @@ function VehiclesView() {
 type Props = { onLogout: () => void };
 
 export default function SupervisorMain({ onLogout }: Props) {
-  const [activeTab, setActiveTab] = useState<'statistics' | 'queue' | 'staff' | 'vehicles'>('statistics')
+  const [activeTab, setActiveTab] = useState<'statistics' | 'queue' | 'staff' | 'vehicles'>('queue')
+  
+  // Get user role from localStorage
+  const userRole = typeof window !== 'undefined' ? (localStorage.getItem('userRole') || 'WORKER') : 'WORKER'
+  const isSupervisor = userRole === 'SUPERVISOR'
+  
+  // Workers only see queue management, supervisors see all
+  useEffect(() => {
+    if (!isSupervisor) {
+      setActiveTab('queue')
+    }
+  }, [isSupervisor])
 
   return (
     <div className="p-4">
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">Wasla Management</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">Wasla Management</h1>
+          <span className={`text-xs px-2 py-1 rounded ${
+            isSupervisor ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+          }`}>
+            {isSupervisor ? 'Superviseur' : 'Employé'}
+          </span>
+        </div>
         <div className="flex items-center space-x-2">
-          <div className="space-x-2">
-            <button 
-              className={`px-3 py-1 rounded ${activeTab === 'statistics' ? 'bg-blue-500 text-white' : 'border'}`} 
-              onClick={() => setActiveTab('statistics')}
-            >
-              Statistiques
-            </button>
-            <button 
-              className={`px-3 py-1 rounded ${activeTab === 'queue' ? 'bg-blue-500 text-white' : 'border'}`} 
-              onClick={() => setActiveTab('queue')}
-            >
+          {isSupervisor && (
+            <div className="space-x-2">
+              <button 
+                className={`px-3 py-1 rounded ${activeTab === 'statistics' ? 'bg-blue-500 text-white' : 'border'}`} 
+                onClick={() => setActiveTab('statistics')}
+              >
+                Statistiques
+              </button>
+              <button 
+                className={`px-3 py-1 rounded ${activeTab === 'queue' ? 'bg-blue-500 text-white' : 'border'}`} 
+                onClick={() => setActiveTab('queue')}
+              >
+                Gestion Queue
+              </button>
+              <button 
+                className={`px-3 py-1 rounded ${activeTab === 'staff' ? 'bg-blue-500 text-white' : 'border'}`} 
+                onClick={() => setActiveTab('staff')}
+              >
+                Personnel
+              </button>
+              <button 
+                className={`px-3 py-1 rounded ${activeTab === 'vehicles' ? 'bg-blue-500 text-white' : 'border'}`} 
+                onClick={() => setActiveTab('vehicles')}
+              >
+                Véhicules
+              </button>
+            </div>
+          )}
+          {!isSupervisor && (
+            <div className="text-sm text-gray-600">
               Gestion Queue
-            </button>
-            <button 
-              className={`px-3 py-1 rounded ${activeTab === 'staff' ? 'bg-blue-500 text-white' : 'border'}`} 
-              onClick={() => setActiveTab('staff')}
-            >
-              Personnel
-            </button>
-            <button 
-              className={`px-3 py-1 rounded ${activeTab === 'vehicles' ? 'bg-blue-500 text-white' : 'border'}`} 
-              onClick={() => setActiveTab('vehicles')}
-            >
-              Véhicules
-            </button>
-          </div>
+            </div>
+          )}
           <button 
             className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
             onClick={onLogout}
@@ -794,10 +819,10 @@ export default function SupervisorMain({ onLogout }: Props) {
         </div>
       </div>
 
-      {activeTab === 'statistics' && <EnhancedStatistics />}
+      {activeTab === 'statistics' && isSupervisor && <EnhancedStatistics />}
       {activeTab === 'queue' && <QueueManagement />}
-      {activeTab === 'staff' && <StaffView />}
-      {activeTab === 'vehicles' && <VehiclesView />}
+      {activeTab === 'staff' && isSupervisor && <StaffView />}
+      {activeTab === 'vehicles' && isSupervisor && <VehiclesView />}
     </div>
   )
 }

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { login, setAuthToken } from "@/api/client";
 
-type Props = { onLoggedIn: (token: string, staffInfo: { firstName: string; lastName: string }) => void };
+type Props = { onLoggedIn: (token: string, staffInfo: { firstName: string; lastName: string; role: string }) => void };
 
 export default function LoginScreen({ onLoggedIn }: Props) {
   const [cin, setCin] = useState("");
@@ -22,11 +22,12 @@ export default function LoginScreen({ onLoggedIn }: Props) {
         localStorage.setItem("authToken", token);
         localStorage.setItem("staffInfo", JSON.stringify({
           firstName: staff.firstName,
-          lastName: staff.lastName
+          lastName: staff.lastName,
+          role: staff.role
         }));
       } catch {}
       setAuthToken(token);
-      onLoggedIn(token, { firstName: staff.firstName, lastName: staff.lastName });
+      onLoggedIn(token, { firstName: staff.firstName, lastName: staff.lastName, role: staff.role });
   } catch (e: any) {
       setError(e?.message || "Échec de la connexion");
     } finally {
