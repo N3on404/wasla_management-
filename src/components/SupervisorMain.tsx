@@ -778,7 +778,7 @@ export default function SupervisorMain({ onLogout }: Props) {
         </div>
         <div className="flex items-center space-x-2">
           {isSupervisor && (
-            <div className="space-x-2">
+          <div className="space-x-2">
               <button 
                 className={`px-3 py-1 rounded ${activeTab === 'statistics' ? 'bg-blue-500 text-white' : 'border'}`} 
                 onClick={() => setActiveTab('statistics')}
@@ -803,7 +803,7 @@ export default function SupervisorMain({ onLogout }: Props) {
               >
                 Véhicules
               </button>
-            </div>
+          </div>
           )}
           {!isSupervisor && (
             <div className="text-sm text-gray-600">
