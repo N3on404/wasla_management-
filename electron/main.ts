@@ -5,6 +5,10 @@ import path from 'node:path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+// Import embedded printer service
+// @ts-ignore - JS file has dynamic exports
+import { EmbeddedPrinterService } from './main-printer-service.js'
+
 // The built directory structure
 //
 // ├─┬─┬ dist
@@ -25,6 +29,7 @@ process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 
 
 let win: BrowserWindow | null
 let tray: Tray | null = null
+let printerService: EmbeddedPrinterService | null = null
 
 function createWindow() {
   win = new BrowserWindow({
@@ -68,10 +73,21 @@ function createWindow() {
 // Quit when all windows are closed, except on macOS. There, it's common
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
-app.on('window-all-closed', () => {
+app.on('window-all-closed', async () => {
   if (process.platform !== 'darwin') {
+    // Stop printer service before quitting
+    if (printerService) {
+      await printerService.stop()
+    }
     app.quit()
     win = null
+  }
+})
+
+// Cleanup on before-quit
+app.on('before-quit', async () => {
+  if (printerService) {
+    await printerService.stop()
   }
 })
 
@@ -83,10 +99,19 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Disable web security for local network connections
   app.commandLine.appendSwitch('disable-web-security')
   app.commandLine.appendSwitch('disable-features', 'VizDisplayCompositor')
+  
+  // Start embedded printer service
+  printerService = new EmbeddedPrinterService(8105)
+  try {
+    await printerService.start()
+    console.log('Embedded printer service started successfully')
+  } catch (error) {
+    console.error('Failed to start embedded printer service:', error)
+  }
   
   createWindow()
 
@@ -107,11 +132,21 @@ app.whenReady().then(() => {
 
   // Auto-launch on Windows
   if (process.platform === 'win32') {
-    app.setLoginItemSettings({
-      openAtLogin: true,
-      path: process.execPath,
-      args: []
-    })
+    // Check if already set
+    const isAlreadySet = app.getLoginItemSettings().openAtLogin
+    
+    if (!isAlreadySet) {
+      // First run: enable auto-start
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        path: process.execPath,
+        args: [],
+        name: 'Wasla Management'
+      })
+      console.log('✅ Auto-start enabled for Wasla Management')
+    } else {
+      console.log('✅ Auto-start already enabled')
+    }
   }
 
   // Auto-update: GitHub provider already configured by electron-builder
