@@ -708,7 +708,7 @@ export default function QueueManagement() {
     setVehicleSearchQuery(query)
     setSearchError(null)
     
-    if (query.length < 2) {
+    if (query.length === 0) {
       setSearchResults([])
       setSearching(false)
       return
@@ -721,7 +721,7 @@ export default function QueueManagement() {
       setSearchResults(results)
       
       // If we have a query but no results, show error
-      if (query.length >= 2 && results.length === 0) {
+      if (results.length === 0 && query.length > 0) {
         setSearchError("Aucun véhicule trouvé avec cette plaque d'immatriculation")
       }
     } catch (error) {
@@ -833,7 +833,7 @@ export default function QueueManagement() {
     setDayPassSearchQuery(query)
     setDayPassSearchError(null)
     
-    if (query.length < 2) {
+    if (query.length === 0) {
       setDayPassSearchResults([])
       setDayPassSearching(false)
       return
@@ -845,7 +845,7 @@ export default function QueueManagement() {
       const results = response.data || []
       setDayPassSearchResults(results)
       
-      if (query.length >= 2 && results.length === 0) {
+      if (results.length === 0 && query.length > 0) {
         setDayPassSearchError("Aucun véhicule trouvé avec cette plaque d'immatriculation")
       }
     } catch (error) {

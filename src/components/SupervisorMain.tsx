@@ -758,12 +758,15 @@ export default function SupervisorMain({ onLogout }: Props) {
   const userRole = typeof window !== 'undefined' ? (localStorage.getItem('userRole') || 'WORKER') : 'WORKER'
   const isSupervisor = userRole === 'SUPERVISOR'
   
-  // Workers only see queue management, supervisors see all
+  // Workers can see queue and vehicles, supervisors see all
   useEffect(() => {
     if (!isSupervisor) {
-      setActiveTab('queue')
+      // Workers default to queue, but can switch to vehicles
+      if (activeTab !== 'queue' && activeTab !== 'vehicles') {
+        setActiveTab('queue')
+      }
     }
-  }, [isSupervisor])
+  }, [isSupervisor, activeTab])
 
   return (
     <div className="p-4">
@@ -806,8 +809,19 @@ export default function SupervisorMain({ onLogout }: Props) {
           </div>
           )}
           {!isSupervisor && (
-            <div className="text-sm text-gray-600">
-              Gestion Queue
+            <div className="space-x-2">
+              <button 
+                className={`px-3 py-1 rounded ${activeTab === 'queue' ? 'bg-blue-500 text-white' : 'border'}`} 
+                onClick={() => setActiveTab('queue')}
+              >
+                Gestion Queue
+              </button>
+              <button 
+                className={`px-3 py-1 rounded ${activeTab === 'vehicles' ? 'bg-blue-500 text-white' : 'border'}`} 
+                onClick={() => setActiveTab('vehicles')}
+              >
+                Véhicules
+              </button>
             </div>
           )}
           <button 
@@ -822,7 +836,7 @@ export default function SupervisorMain({ onLogout }: Props) {
       {activeTab === 'statistics' && isSupervisor && <EnhancedStatistics />}
       {activeTab === 'queue' && <QueueManagement />}
       {activeTab === 'staff' && isSupervisor && <StaffView />}
-      {activeTab === 'vehicles' && isSupervisor && <VehiclesView />}
+      {activeTab === 'vehicles' && <VehiclesView />}
     </div>
   )
 }
