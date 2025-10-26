@@ -1,9 +1,9 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.wasla.choice",
+  "appId": "com.wasla.management",
   "asar": true,
-  "productName": "Wasla Choice",
+  "productName": "Wasla Management",
   "directories": {
     "output": "release/${version}"
   },
@@ -12,13 +12,7 @@
     "dist-electron"
   ],
   "icon": "public/icons/icon-256x256.png",
-  "mac": {
-    "icon": "public/icons/icon-256x256.png",
-    "target": [
-      "dmg"
-    ],
-    "artifactName": "${productName}-Mac-${version}-Installer.${ext}"
-  },
+ 
   "win": {
     "icon": "public/icons/icon-256x256.png",
     "publisherName": ["STE Dhraiff Services Transport"],
@@ -38,19 +32,5 @@
     "allowToChangeInstallationDirectory": true,
     "deleteAppDataOnUninstall": false
   },
-  "linux": {
-    "icon": "public/icons",
-    "target": [
-      "AppImage"
-    ],
-    "artifactName": "${productName}-Linux-${version}.${ext}"
-  },
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "N3on404",
-      "repo": "wasla_management-",
-      "releaseType": "release"
-    }
-  ]
+  "publish": null
 }

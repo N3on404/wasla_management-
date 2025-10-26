@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "tsc && vite build && electron-builder --win --x64",
     "build:linux": "tsc && vite build && electron-builder --linux",
     "build:linux-only": "electron-builder --linux",
     "build:windows": "tsc && vite build && electron-builder --win --x64",
