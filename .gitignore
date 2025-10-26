@@ -12,7 +12,7 @@ dist
 dist-ssr
 *.local
 release
-electron
+dist-electron
 
 # Build outputs
 dist-electron/

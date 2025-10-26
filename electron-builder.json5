@@ -50,13 +50,5 @@
       "AppImage"
     ],
     "artifactName": "${productName}-Linux-${version}.${ext}"
-  },
-  "publish": [
-    {
-      "provider": "github",
-      "owner": "Samer-Gassouma",
-      "repo": "wasla",
-      "releaseType": "release"
-    }
-  ]
+  }
 }
