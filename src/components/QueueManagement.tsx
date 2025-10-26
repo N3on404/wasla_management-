@@ -9,7 +9,9 @@ import {
   searchVehicles,
   getVehicleAuthorizedRoutes,
   getAllDestinations,
-  getVehicleDayPass
+  getVehicleDayPass,
+  getStaffInfo,
+  listTodayTrips
 } from '@/api/client'
 import { 
   DndContext, 
@@ -28,6 +30,8 @@ import {
   useSortable
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { printerService, TicketData } from '@/services/printerService'
+import PrinterStatusDisplay from './PrinterStatusDisplay'
 
 type Summary = { 
   destinationId: string
@@ -513,6 +517,12 @@ export default function QueueManagement() {
   const [dayPassStatus, setDayPassStatus] = useState<{status: string; details: any} | null>(null)
   const [checkingDayPass, setCheckingDayPass] = useState(false)
 
+  // Exit pass printer state
+  const [exitPassModalOpen, setExitPassModalOpen] = useState(false)
+  const [trips, setTrips] = useState<any[]>([])
+  const [loadingTrips, setLoadingTrips] = useState(false)
+  const [tripsSearch, setTripsSearch] = useState('')
+
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -742,11 +752,47 @@ export default function QueueManagement() {
     if (!selectedVehicle || !selectedDestination) return
     
     try {
-      await addVehicleToQueue(
+      const response = await addVehicleToQueue(
         selectedDestination.stationId,
         selectedVehicle.id,
         selectedDestination.stationName
       )
+      
+      // Handle printing based on response
+      const staffInfo = getStaffInfo()
+      const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
+      
+      // Check if day pass was created and print it
+      if (response.data?.dayPassStatus === "created" && response.data?.dayPass) {
+        const dayPassData = response.data.dayPass
+        
+        const ticketData: TicketData = {
+          licensePlate: dayPassData.licensePlate || selectedVehicle.licensePlate,
+          destinationName: selectedDestination.stationName,
+          seatNumber: 0,
+          totalAmount: 0,
+          basePrice: 0,
+          createdBy: staffName,
+          createdAt: new Date().toISOString(),
+          stationName: "Station",
+          routeName: dayPassData.destinationName,
+          staffFirstName: staffInfo?.firstName || '',
+          staffLastName: staffInfo?.lastName || '',
+        };
+        
+        // Print the day pass ticket automatically
+        try {
+          await printerService.printDayPassTicket(ticketData)
+          console.log('Day pass ticket printed successfully')
+          alert(`✅ Véhicule ajouté avec succès!\n🎫 Pass journalier imprimé pour ${ticketData.licensePlate}`)
+        } catch (printError) {
+          console.error('Failed to print day pass ticket:', printError)
+          alert(`✅ Véhicule ajouté, mais échec de l'impression du pass journalier.\nErreur: ${printError}`)
+        }
+      } else {
+        alert(`✅ Véhicule ajouté avec succès!`)
+      }
+      
       setAddVehicleModalOpen(false)
       setSelectedVehicle(null)
       setSelectedDestination(null)
@@ -845,8 +891,49 @@ export default function QueueManagement() {
     }
   }
 
+  // Exit pass handler
+  const handlePrintExitPass = async (trip: any, tripIndex: number) => {
+    try {
+      const staffInfo = getStaffInfo()
+      const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
+      
+      const exitPassTicketData: TicketData = {
+        licensePlate: trip.licensePlate,
+        destinationName: trip.destinationName,
+        seatNumber: trip.seatsBooked || 0,
+        totalAmount: trip.seatsBooked && trip.basePrice ? trip.seatsBooked * trip.basePrice : 0,
+        basePrice: trip.basePrice || 0,
+        createdBy: staffName,
+        createdAt: trip.startTime || new Date().toISOString(),
+        stationName: 'Station',
+        routeName: trip.destinationName,
+        vehicleCapacity: trip.vehicleCapacity,
+        exitPassCount: tripIndex + 1,
+        staffFirstName: staffInfo?.firstName || '',
+        staffLastName: staffInfo?.lastName || '',
+      };
+      
+      // Print the exit pass ticket
+      await printerService.printExitPassTicket(exitPassTicketData)
+      
+      alert(`✅ Laissez-passer imprimé avec succès!\n🚗 ${trip.licensePlate} - ${trip.destinationName}`)
+      
+      // Close modal after successful print
+      setExitPassModalOpen(false)
+      setTrips([])
+    } catch (error) {
+      console.error('Failed to print exit pass for trip:', error)
+      alert(`❌ Échec de l'impression du laissez-passer.\nErreur: ${error}`)
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* Printer Status Display */}
+      <div className="flex justify-end mb-4">
+        <PrinterStatusDisplay />
+      </div>
+
       {/* Global Actions */}
       <div className="flex justify-between items-center gap-2">
         <div className="flex gap-2">
@@ -876,6 +963,25 @@ export default function QueueManagement() {
             title="Vérifier le statut du passe journal"
           >
             🎫 Vérifier Passe Jour
+          </button>
+          <button
+            onClick={async () => {
+              setExitPassModalOpen(true)
+              setLoadingTrips(true)
+              setTripsSearch('')
+              try {
+                const response = await listTodayTrips()
+                setTrips(Array.isArray(response.data) ? response.data : [])
+              } catch (error) {
+                console.error('Failed to load trips:', error)
+              } finally {
+                setLoadingTrips(false)
+              }
+            }}
+            className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
+            title="Imprimer laissez-passer sortie"
+          >
+            🚪 Imprimer Sortie
           </button>
         </div>
         <button
@@ -1184,6 +1290,112 @@ export default function QueueManagement() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Pass Printer modal */}
+      {exitPassModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Imprimer Laissez-passer de Sortie</h2>
+                <button
+                  onClick={() => {
+                    setExitPassModalOpen(false)
+                    setTrips([])
+                    setTripsSearch('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Search input */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Rechercher par immatriculation..."
+                  value={tripsSearch}
+                  onChange={async (e) => {
+                    const val = e.target.value
+                    setTripsSearch(val)
+                    setLoadingTrips(true)
+                    try {
+                      const response = await listTodayTrips(val.trim())
+                      setTrips(Array.isArray(response.data) ? response.data : [])
+                    } catch (error) {
+                      console.error('Failed to search trips:', error)
+                      setTrips([])
+                    } finally {
+                      setLoadingTrips(false)
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* Loading state */}
+              {loadingTrips && (
+                <div className="text-center py-8 text-gray-500">Chargement des trajets...</div>
+              )}
+
+              {/* Trips list */}
+              {!loadingTrips && trips.length > 0 && (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {trips.map((trip: any, index: number) => (
+                    <div
+                      key={trip.id || index}
+                      onClick={() => handlePrintExitPass(trip, index)}
+                      className="p-3 border rounded cursor-pointer transition-colors hover:bg-orange-50 hover:border-orange-500"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">{trip.licensePlate}</div>
+                          <div className="text-sm text-gray-600">{trip.destinationName}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm font-medium">{trip.seatsBooked || 0} sièges</div>
+                          <div className="text-xs text-gray-500">
+                            {trip.startTime ? new Date(trip.startTime).toLocaleTimeString() : 'Aujourd\'hui'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* No trips found */}
+              {!loadingTrips && trips.length === 0 && tripsSearch === '' && (
+                <div className="text-center py-8 text-gray-500">
+                  Aucun trajet trouvé pour aujourd'hui
+                </div>
+              )}
+
+              {!loadingTrips && trips.length === 0 && tripsSearch !== '' && (
+                <div className="text-center py-8 text-gray-500">
+                  Aucun trajet trouvé pour "{tripsSearch}"
+                </div>
+              )}
+
+              {/* Close button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => {
+                    setExitPassModalOpen(false)
+                    setTrips([])
+                    setTripsSearch('')
+                  }}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
             </div>
           </div>
         </div>

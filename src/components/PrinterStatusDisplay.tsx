@@ -1,16 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { printerService, PrinterStatus } from '@/services/printerService';
+import { useState, useEffect, useRef } from 'react';
+import { printerIpConfigService } from '@/services/printerIpConfigService';
 
-interface PrinterStatusDisplayProps {
-  printerId?: string;
+interface PrinterStatus {
+  connected: boolean;
+  error?: string;
 }
 
-export default function PrinterStatusDisplay({ printerId = 'printer1' }: PrinterStatusDisplayProps) {
+export default function PrinterStatusDisplay() {
   const [status, setStatus] = useState<PrinterStatus>({ connected: false });
   const [loading, setLoading] = useState(false);
   const [showIpModal, setShowIpModal] = useState(false);
-  const [currentIp, setCurrentIp] = useState('192.168.192.11');
-  const [newIp, setNewIp] = useState('192.168.192.11');
+  const [currentIp, setCurrentIp] = useState('');
+  const [newIp, setNewIp] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -19,14 +20,14 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
   // Load current printer configuration
   useEffect(() => {
     loadPrinterConfig();
-  }, [printerId]);
+  }, []);
 
   // Refresh status every 10 seconds
   useEffect(() => {
     refreshStatus();
     const interval = setInterval(refreshStatus, 10000);
     return () => clearInterval(interval);
-  }, [printerId]);
+  }, [currentIp]);
 
   // F3 key handler
   useEffect(() => {
@@ -42,10 +43,11 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
     return () => document.removeEventListener('keydown', handleKeyPress);
   }, [currentIp]);
 
-  const loadPrinterConfig = async () => {
+  const loadPrinterConfig = () => {
     try {
-      const config = await printerService.getPrinterConfig(printerId);
+      const config = printerIpConfigService.getConfig();
       setCurrentIp(config.ip);
+      setNewIp(config.ip);
     } catch (err) {
       console.error('Failed to load printer config:', err);
     }
@@ -55,7 +57,7 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
     setLoading(true);
     setError(null);
     try {
-      const testStatus = await printerService.testPrinterConnection(printerId);
+      const testStatus = await printerIpConfigService.testPrinterConnection();
       setStatus(testStatus);
     } catch (err) {
       setError(`Échec de la connexion : ${err}`);
@@ -71,15 +73,19 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
       return;
     }
 
+    // Validate IP format
+    if (!printerIpConfigService.isValidIp(newIp.trim())) {
+      setError("Format d'adresse IP invalide");
+      return;
+    }
+
     setSaving(true);
     setError(null);
     setSuccess(null);
 
     try {
       // Update printer configuration
-      const config = await printerService.getPrinterConfig(printerId);
-      config.ip = newIp.trim();
-      await printerService.updatePrinterConfig(printerId, config);
+      printerIpConfigService.setPrinterIp(newIp.trim());
       
       setCurrentIp(newIp.trim());
       setSuccess("Adresse IP de l'imprimante mise à jour avec succès !");
@@ -87,7 +93,7 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
       // Test connection with new IP
       setTimeout(async () => {
         try {
-          const testStatus = await printerService.testPrinterConnection(printerId);
+          const testStatus = await printerIpConfigService.testPrinterConnection();
           setStatus(testStatus);
           if (testStatus.connected) {
             setSuccess("IP mise à jour et connexion réussie !");
@@ -143,7 +149,7 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
 
   return (
     <>
-      {/* Affichage de l'état de l'imprimante */}
+      {/* Affichage de l'état de l'imprimante avec bouton de configuration intégré */}
       <div className="flex items-center space-x-2">
         <div 
           className={`w-3 h-3 rounded-full transition-colors ${
@@ -159,12 +165,13 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
             ⚠️
           </span>
         )}
+        <span className="text-xs text-gray-500">IP: {currentIp}</span>
         <button
           onClick={handleModalOpen}
           className="text-xs text-blue-600 hover:text-blue-800 underline"
-          title="Changer l'IP de l'imprimante (F3)"
+          title="Configuration de l'IP de l'imprimante (F3)"
         >
-          IP: {currentIp}
+          ⚙️ IP Imprimante
         </button>
       </div>
 
@@ -247,3 +254,4 @@ export default function PrinterStatusDisplay({ printerId = 'printer1' }: Printer
     </>
   );
 }
+

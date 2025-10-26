@@ -8,6 +8,9 @@
     "build": "tsc && vite build && electron-builder",
     "build:linux": "tsc && vite build && electron-builder --linux",
     "build:linux-only": "electron-builder --linux",
+    "build:windows": "tsc && vite build && electron-builder --win --x64",
+    "build:windows-only": "electron-builder --win --x64",
+    "build:all": "tsc && vite build && electron-builder --win --x64 --linux",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
   },
