@@ -24,13 +24,19 @@
     "publisherName": ["STE Dhraiff Services Transport"],
     "target": [
       {
-        "target": "portable",
+        "target": "msi",
         "arch": [
           "x64"
         ]
       }
     ],
-    "artifactName": "${productName}-Windows-${version}-Portable.${ext}"
+    "artifactName": "${productName}-Windows-${version}-Setup.${ext}"
+  },
+  "msi": {
+    "oneClick": false,
+    "perMachine": false,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true
   },
   "nsis": {
     "oneClick": false,
