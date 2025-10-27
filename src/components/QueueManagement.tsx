@@ -337,7 +337,7 @@ export default function QueueManagement() {
   const [searchError, setSearchError] = useState<string | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
   const [vehicleAuthorizedStations, setVehicleAuthorizedStations] = useState<any[]>([])
-  const [selectedDestination, setSelectedDestination] = useState<{stationId: string; stationName: string} | null>(null)
+  const [selectedDestination, setSelectedDestination] = useState<{stationId: string; stationName: string; basePrice?: number} | null>(null)
   const [addingVehicle, setAddingVehicle] = useState(false)
 
   // Day pass checker state
@@ -598,7 +598,14 @@ export default function QueueManagement() {
   }
 
   const handleDestinationSelect = (stationId: string, stationName: string) => {
-    setSelectedDestination({ stationId, stationName })
+    // Get the price from summaries
+    const summary = summaries.find(s => s.destinationId === stationId)
+    const basePrice = summary?.basePrice || 0
+    setSelectedDestination({ 
+      stationId, 
+      stationName,
+      basePrice
+    })
   }
 
   const resetAddVehicleForm = () => {
@@ -629,16 +636,28 @@ export default function QueueManagement() {
       
       if (response.data?.dayPassStatus === "created" && response.data?.dayPass) {
         const dayPassData = response.data.dayPass
+        // Get the price from the selected destination (already stored in selectedDestination.basePrice)
+        // or fallback to finding it in summaries, or use the day pass price
+        const dayPassPrice = selectedDestination?.basePrice && selectedDestination.basePrice > 0
+          ? selectedDestination.basePrice
+          : (dayPassData.price && dayPassData.price > 0 ? dayPassData.price : 2.0)
+        
+        console.log('DEBUG Day Pass - Price resolution:', {
+          selectedDestinationPrice: selectedDestination?.basePrice,
+          dayPassDataPrice: dayPassData.price,
+          resolvedPrice: dayPassPrice
+        })
+        
         const ticketData: TicketData = {
           licensePlate: dayPassData.licensePlate || selectedVehicle.licensePlate,
           destinationName: destinationName,
           seatNumber: 0,
-          totalAmount: 0,
-          basePrice: 0,
+          totalAmount: dayPassPrice,
+          basePrice: dayPassPrice,
           createdBy: staffName,
           createdAt: new Date().toISOString(),
           stationName: "Station",
-          routeName: dayPassData.destinationName,
+          routeName: destinationName,
           staffFirstName: staffInfo?.firstName || '',
           staffLastName: staffInfo?.lastName || '',
         }
@@ -804,12 +823,34 @@ export default function QueueManagement() {
       const staffInfo = getStaffInfo()
       const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
       
+      // Get the base price - first try trip.basePrice, then look up from summaries by destinationId
+      let basePrice = trip.basePrice
+      if (!basePrice || basePrice === 0) {
+        const destinationSummary = summaries.find(s => s.destinationId === trip.destinationId)
+        basePrice = destinationSummary?.basePrice || 0
+        console.log('DEBUG Exit Pass - Looking up price from summaries:', {
+          tripBasePrice: trip.basePrice,
+          destinationId: trip.destinationId,
+          foundSummary: destinationSummary,
+          resolvedBasePrice: basePrice
+        })
+      }
+      
+      const seatsBooked = trip.seatsBooked || 0
+      const totalAmount = seatsBooked * basePrice
+      
+      console.log('DEBUG Exit Pass - Final calculation:', {
+        seatsBooked,
+        basePrice,
+        totalAmount
+      })
+      
       const exitPassTicketData: TicketData = {
         licensePlate: trip.licensePlate,
         destinationName: trip.destinationName,
-        seatNumber: trip.seatsBooked || 0,
-        totalAmount: trip.seatsBooked && trip.basePrice ? trip.seatsBooked * trip.basePrice : 0,
-        basePrice: trip.basePrice || 0,
+        seatNumber: seatsBooked,
+        totalAmount: totalAmount,
+        basePrice: basePrice,
         createdBy: staffName,
         createdAt: trip.startTime || new Date().toISOString(),
         stationName: 'Station',
@@ -903,13 +944,26 @@ export default function QueueManagement() {
       const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
       
       const dayPass = vehicleWithDayPass.dayPass
+      // Get the price from the destination, fallback to day pass price
+      const destinationSummary = summaries.find(s => s.destinationId === dayPass.destinationId)
+      const dayPassPrice = (destinationSummary?.basePrice && destinationSummary.basePrice > 0)
+        ? destinationSummary.basePrice
+        : (dayPass.price && dayPass.price > 0 ? dayPass.price : 2.0)
+      
+      console.log('DEBUG Day Pass Printer - Price resolution:', {
+        dayPassDestinationId: dayPass.destinationId,
+        foundSummary: destinationSummary,
+        summaryBasePrice: destinationSummary?.basePrice,
+        dayPassPriceField: dayPass.price,
+        resolvedPrice: dayPassPrice
+      })
       
       const ticketData: TicketData = {
         licensePlate: dayPass.licensePlate || vehicleWithDayPass.licensePlate,
         destinationName: dayPass.destinationName || 'Station',
         seatNumber: 0,
-        totalAmount: 0,
-        basePrice: 0,
+        totalAmount: dayPassPrice,
+        basePrice: dayPassPrice,
         createdBy: staffName,
         createdAt: dayPass.purchaseDate || new Date().toISOString(),
         stationName: "Station",

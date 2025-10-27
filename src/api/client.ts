@@ -291,7 +291,18 @@ export async function listTrips() {
 
 export async function listTodayTrips(search?: string) {
   const qs = search ? `?search=${encodeURIComponent(search)}` : '';
-  return request<{ data: Array<{ id: string; licensePlate: string; destinationName: string; startTime: string }> }>(API.booking, `/api/v1/trips/today${qs}`);
+  return request<{ data: Array<{ 
+    id: string; 
+    licensePlate: string; 
+    destinationName: string; 
+    destinationId: string;
+    vehicleId: string;
+    seatsBooked: number; 
+    vehicleCapacity: number;
+    basePrice: number;
+    startTime: string;
+    createdAt: string;
+  }> }>(API.booking, `/api/v1/trips/today${qs}`);
 }
 
 export async function healthAuth() {
