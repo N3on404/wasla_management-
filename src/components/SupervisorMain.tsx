@@ -10,6 +10,14 @@ function StaffView() {
   const [showForm, setShowForm] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any | null>(null)
   
+  // Notification state
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error'} | null>(null)
+  
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }
+  
   const firstNameRef = useRef<HTMLInputElement>(null)
   const lastNameRef = useRef<HTMLInputElement>(null)
   const cinRef = useRef<HTMLInputElement>(null)
@@ -45,14 +53,18 @@ function StaffView() {
       
       if (editingStaff) {
         await updateStaff(editingStaff.id, formData)
+        showNotification('✅ Personnel modifié avec succès', 'success')
       } else {
         await createStaff(formData)
+        showNotification('✅ Personnel créé avec succès', 'success')
       }
       setShowForm(false)
       setEditingStaff(null)
       loadStaff()
     } catch (error) {
       console.error('Failed to save staff:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur sauvegarde personnel: ${errorMsg}`, 'error')
     }
   }
 
@@ -72,13 +84,44 @@ function StaffView() {
     try {
       await deleteStaff(id)
       loadStaff()
+      showNotification('✅ Personnel supprimé avec succès', 'success')
     } catch (error) {
       console.error('Failed to delete staff:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur suppression personnel: ${errorMsg}`, 'error')
     }
   }
 
   return (
     <div>
+      {/* Notification Toast */}
+      {notification && (
+        <div 
+          className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 max-w-md ${
+            notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          }`}
+          style={{ animation: 'slideIn 0.3s ease-out' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg flex-shrink-0">{notification.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-medium break-words">{notification.message}</span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-gray-500">Gérer le personnel (CRUD)</p>
         <button 
@@ -209,10 +252,20 @@ function StaffView() {
 
 function VehiclesView() {
   const [vehicles, setVehicles] = useState<any[]>([])
+  const [allVehicles, setAllVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null)
   const [authorized, setAuthorized] = useState<any[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  
+  // Notification state
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error'} | null>(null)
+  
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }
   
   const licensePlateRef = useRef<HTMLInputElement>(null)
   const capacityRef = useRef<HTMLInputElement>(null)
@@ -235,6 +288,7 @@ function VehiclesView() {
     setLoading(true)
     try {
       const response = await listVehicles()
+      setAllVehicles(response.data)
       setVehicles(response.data)
     } catch (error) {
       console.error('Failed to load vehicles:', error)
@@ -242,6 +296,21 @@ function VehiclesView() {
       setLoading(false)
     }
   }
+
+  // Filter vehicles based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setVehicles(allVehicles)
+      return
+    }
+    
+    const query = searchQuery.toLowerCase().trim()
+    const filtered = allVehicles.filter(v => 
+      v.licensePlate?.toLowerCase().includes(query) ||
+      v.phoneNumber?.toLowerCase().includes(query)
+    )
+    setVehicles(filtered)
+  }, [searchQuery, allVehicles])
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -260,7 +329,7 @@ function VehiclesView() {
     
     // Validate license plate format
     if (!validateLicensePlate(licensePlate)) {
-      alert('Invalid license plate format. Use format: 123 TUN 4567 (2-3 digits, TUN, 1-4 digits)')
+      showNotification('Format invalide. Format: 123 TUN 4567 (2-3 chiffres, TUN, 1-4 chiffres)', 'error')
       return
     }
     
@@ -321,11 +390,15 @@ function VehiclesView() {
           }
         }
       }
+      
+      showNotification(editingVehicle ? '✅ Véhicule modifié avec succès' : '✅ Véhicule créé avec succès', 'success')
       setShowForm(false)
       setEditingVehicle(null)
       loadVehicles()
     } catch (error) {
       console.error('Failed to save vehicle:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur sauvegarde véhicule: ${errorMsg}`, 'error')
     }
   }
 
@@ -363,15 +436,44 @@ function VehiclesView() {
       const result = await deleteVehicle(id)
       console.log('Delete result:', result)
       loadVehicles()
-      alert('Vehicle deleted successfully!')
+      showNotification('✅ Véhicule supprimé avec succès', 'success')
     } catch (error) {
       console.error('Failed to delete vehicle:', error)
-      alert('Failed to delete vehicle. It may have related records that prevent deletion.')
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur suppression véhicule: ${errorMsg}`, 'error')
     }
   }
 
   return (
     <div>
+      {/* Notification Toast */}
+      {notification && (
+        <div 
+          className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 max-w-md ${
+            notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          }`}
+          style={{ animation: 'slideIn 0.3s ease-out' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg flex-shrink-0">{notification.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-medium break-words">{notification.message}</span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       <div className="flex justify-between items-center mb-4">
         <p className="text-sm text-gray-500">Manage vehicles (CRUD)</p>
         <button 
@@ -386,7 +488,9 @@ function VehiclesView() {
       <div className="mb-4">
         <input
           type="text"
-          placeholder="Search by license plate or phone number..."
+          placeholder="Rechercher par plaque ou téléphone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           className="w-full px-3 py-2 border rounded"
         />
       </div>

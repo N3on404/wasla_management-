@@ -252,214 +252,6 @@ function ChangeDestinationModal({
   )
 }
 
-function AddVehicleModal({
-  isOpen,
-  onClose,
-  onSearchChange,
-  searchResults,
-  searching,
-  searchError,
-  selectedVehicle,
-  onSelectVehicle,
-  authorizedStations,
-  selectedDestination,
-  onDestinationSelect,
-  onAddToQueue
-}: any) {
-  const [showDestinationSelection, setShowDestinationSelection] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const searchTimeoutRef = useRef<NodeJS.Timeout>()
-
-  const handleSearchChange = useCallback((query: string) => {
-    setSearchQuery(query)
-    
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current)
-    }
-
-    if (query.length === 0) {
-      onSearchChange('')
-      return
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      onSearchChange(query)
-    }, 300)
-  }, [onSearchChange])
-
-  // Reset search when modal opens/closes
-  useEffect(() => {
-    if (isOpen) {
-      setSearchQuery('')
-    }
-    
-    // Cleanup timeout when modal closes
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current)
-      }
-    }
-  }, [isOpen])
-
-  if (!isOpen) return null
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">
-              {!selectedVehicle ? 'Rechercher un véhicule' : 
-               !showDestinationSelection ? 'Sélectionner destination' : 
-               'Confirmer l\'ajout'}
-            </h2>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl"
-            >
-              ×
-            </button>
-          </div>
-
-          {/* Step 1: Search Vehicle */}
-          {!selectedVehicle && (
-            <>
-              <div className="mb-4">
-                <input
-                  type="text"
-                  placeholder="Rechercher par plaque d'immatriculation..."
-                  value={searchQuery}
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  autoFocus
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {searching && <div className="text-sm text-gray-500 mt-2">Recherche...</div>}
-                {searchError && <div className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded">{searchError}</div>}
-              </div>
-
-              {searchResults.length > 0 && (
-                <div className="space-y-2 max-h-48 overflow-y-auto mb-4">
-                  {searchResults.map((vehicle: any) => (
-                    <div
-                      key={vehicle.id}
-                      onClick={() => onSelectVehicle(vehicle)}
-                      className={`p-3 border rounded cursor-pointer transition-colors ${
-                        selectedVehicle?.id === vehicle.id ? 'bg-blue-50 border-blue-500' : 'hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="font-medium">{vehicle.licensePlate}</div>
-                      <div className="text-xs text-gray-500">
-                        Capacité: {vehicle.capacity} - {vehicle.isActive ? 'Actif' : 'Inactif'}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <button
-                  onClick={onClose}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                  Annuler
-                </button>
-              </div>
-            </>
-          )}
-
-
-
-          {/* Step 2: Select Destination */}
-          {selectedVehicle && !showDestinationSelection && (
-            <>
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">Véhicule sélectionné :</div>
-                <div className="font-semibold">{selectedVehicle.licensePlate}</div>
-                <div className="text-xs text-gray-500">
-                  Capacité: {selectedVehicle.capacity} - {selectedVehicle.isActive ? 'Actif' : 'Inactif'}
-                </div>
-              </div>
-
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sélectionner une destination autorisée :
-                </label>
-                {!authorizedStations || authorizedStations.length === 0 ? (
-                  <div className="text-sm text-yellow-600 p-3 bg-yellow-50 rounded-lg">
-                    Chargement des destinations autorisées...
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {authorizedStations.map((station: any) => (
-                      <div
-                        key={station.stationId}
-                        onClick={() => onDestinationSelect(station.stationId, station.stationName)}
-                        className={`p-3 border rounded cursor-pointer transition-colors ${
-                          selectedDestination?.stationId === station.stationId 
-                            ? 'bg-blue-50 border-blue-500' 
-                            : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="font-medium">{station.stationName}</div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => onSelectVehicle(null)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={() => setShowDestinationSelection(true)}
-                  disabled={!selectedDestination || authorizedStations.length === 0}
-                  className={`flex-1 px-4 py-2 rounded-md transition-colors ${
-                    selectedDestination && authorizedStations.length > 0
-                      ? 'bg-blue-500 text-white hover:bg-blue-600'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                >
-                  Continuer
-                </button>
-              </div>
-            </>
-          )}
-
-          {/* Step 3: Confirm */}
-          {selectedVehicle && showDestinationSelection && (
-            <>
-              <div className="mb-4 p-3 bg-green-50 rounded-lg">
-                <div className="text-sm text-gray-600 mb-1">Véhicule :</div>
-                <div className="font-semibold">{selectedVehicle.licensePlate}</div>
-                <div className="text-sm text-gray-600 mt-2 mb-1">Destination :</div>
-                <div className="font-semibold">{selectedDestination?.stationName}</div>
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowDestinationSelection(false)}
-                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                  Retour
-                </button>
-                <button
-                  onClick={onAddToQueue}
-                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-                >
-                  Confirmer l'ajout
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function SortableQueueItem({ 
   entry,
@@ -526,19 +318,27 @@ export default function QueueManagement() {
   const [queue, setQueue] = useState<QueueEntry[]>([])
   const [loading, setLoading] = useState(false)
   
+  // Notification state
+  const [notification, setNotification] = useState<{message: string; type: 'success' | 'error'} | null>(null)
+  
+  const showNotification = (message: string, type: 'success' | 'error' = 'success') => {
+    setNotification({ message, type })
+    setTimeout(() => setNotification(null), 3000)
+  }
+  
   // Change destination modal state
   const [changeDestModalOpen, setChangeDestModalOpen] = useState(false)
   const [changeDestFromEntry, setChangeDestFromEntry] = useState<QueueEntry | null>(null)
   const [authorizedStations, setAuthorizedStations] = useState<any[]>([])
-  
-  // Add vehicle modal state
-  const [addVehicleModalOpen, setAddVehicleModalOpen] = useState(false)
+  const [searchVehiclesQuery, setSearchVehiclesQuery] = useState('')
+  // Add vehicle state (always visible, not modal)
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null)
   const [vehicleAuthorizedStations, setVehicleAuthorizedStations] = useState<any[]>([])
   const [selectedDestination, setSelectedDestination] = useState<{stationId: string; stationName: string} | null>(null)
+  const [addingVehicle, setAddingVehicle] = useState(false)
 
   // Day pass checker state
   const [dayPassModalOpen, setDayPassModalOpen] = useState(false)
@@ -556,7 +356,16 @@ export default function QueueManagement() {
   const [trips, setTrips] = useState<any[]>([])
   const [loadingTrips, setLoadingTrips] = useState(false)
   const [tripsSearch, setTripsSearch] = useState('')
+  const [printingTripIds, setPrintingTripIds] = useState<Set<string>>(new Set())
   const tripsSearchTimeoutRef = useRef<NodeJS.Timeout>()
+
+  // Day pass printer state
+  const [dayPassPrinterModalOpen, setDayPassPrinterModalOpen] = useState(false)
+  const [dayPassesToPrint, setDayPassesToPrint] = useState<any[]>([])
+  const [loadingDayPasses, setLoadingDayPasses] = useState(false)
+  const [dayPassPrinterSearch, setDayPassPrinterSearch] = useState('')
+  const [printingDayPassVehicleIds, setPrintingDayPassVehicleIds] = useState<Set<string>>(new Set())
+  const dayPassPrinterTimeoutRef = useRef<NodeJS.Timeout>()
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -575,29 +384,6 @@ export default function QueueManagement() {
     }
   }, [selected])
 
-  // F6 keyboard shortcut to open add vehicle modal
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'F6') {
-        event.preventDefault()
-        // Only open if modal is not already open
-        if (!addVehicleModalOpen) {
-          setSelectedVehicle(null)
-          setSelectedDestination(null)
-          setSearchResults([])
-          setSearching(false)
-          setSearchError(null)
-          setVehicleAuthorizedStations([])
-          setAddVehicleModalOpen(true)
-        }
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [addVehicleModalOpen])
 
   // Day Pass modal - reset search and cleanup
   useEffect(() => {
@@ -624,6 +410,19 @@ export default function QueueManagement() {
       }
     }
   }, [exitPassModalOpen])
+
+  // Day Pass Printer modal - reset search and cleanup
+  useEffect(() => {
+    if (dayPassPrinterModalOpen) {
+      setDayPassPrinterSearch('')
+    }
+    
+    return () => {
+      if (dayPassPrinterTimeoutRef.current) {
+        clearTimeout(dayPassPrinterTimeoutRef.current)
+      }
+    }
+  }, [dayPassPrinterModalOpen])
 
   const loadSummaries = async () => {
     try {
@@ -757,36 +556,31 @@ export default function QueueManagement() {
       setAuthorizedStations([])
       await loadQueue()
       await loadSummaries()
-      console.log('Queue refreshed after destination change')
+      showNotification('✅ Destination changée avec succès', 'success')
     } catch (error) {
       console.error('Failed to change destination:', error)
-      alert('Erreur lors du changement de destination: ' + (error as any)?.message)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur changement destination: ${errorMsg}`, 'error')
     }
   }
 
   const handleSearchVehicles = async (query: string) => {
-    setSearchError(null)
-    
     if (query.length === 0) {
       setSearchResults([])
-      setSearching(false)
+      setSearchError(null)
       return
     }
 
     setSearching(true)
+    
     try {
       const response = await searchVehicles(query)
-      const results = response.data || []
-      setSearchResults(results)
-      
-      // If we have a query but no results, show error
-      if (results.length === 0 && query.length > 0) {
-        setSearchError("Aucun véhicule trouvé avec cette plaque d'immatriculation")
-      }
+      setSearchResults(response.data || [])
+      setSearchError(null)
     } catch (error) {
-      console.error('Failed to search vehicles:', error)
+      console.error('Search error:', error)
       setSearchResults([])
-      setSearchError("Erreur lors de la recherche. Veuillez réessayer.")
+      setSearchError("Erreur")
     } finally {
       setSearching(false)
     }
@@ -807,27 +601,37 @@ export default function QueueManagement() {
     setSelectedDestination({ stationId, stationName })
   }
 
+  const resetAddVehicleForm = () => {
+    setSelectedVehicle(null)
+    setSelectedDestination(null)
+    setVehicleAuthorizedStations([])
+    setSearchResults([])
+    setSearchError(null)
+    setAddingVehicle(false)
+    // Keep the query and searching state - let the user keep typing
+  }
+
   const handleAddVehicle = async () => {
     if (!selectedVehicle || !selectedDestination) return
     
+    const destinationId = selectedDestination.stationId
+    const destinationName = selectedDestination.stationName
+    const vehicleId = selectedVehicle.id
+    
+    // Reset form FIRST - this unblocks the input immediately
+    resetAddVehicleForm()
+    
     try {
-      const response = await addVehicleToQueue(
-        selectedDestination.stationId,
-        selectedVehicle.id,
-        selectedDestination.stationName
-      )
+      const response = await addVehicleToQueue(destinationId, vehicleId, destinationName)
       
-      // Handle printing based on response
       const staffInfo = getStaffInfo()
       const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
       
-      // Check if day pass was created and print it
       if (response.data?.dayPassStatus === "created" && response.data?.dayPass) {
         const dayPassData = response.data.dayPass
-        
         const ticketData: TicketData = {
           licensePlate: dayPassData.licensePlate || selectedVehicle.licensePlate,
-          destinationName: selectedDestination.stationName,
+          destinationName: destinationName,
           seatNumber: 0,
           totalAmount: 0,
           basePrice: 0,
@@ -837,34 +641,27 @@ export default function QueueManagement() {
           routeName: dayPassData.destinationName,
           staffFirstName: staffInfo?.firstName || '',
           staffLastName: staffInfo?.lastName || '',
-        };
+        }
         
-        // Print the day pass ticket automatically
         try {
           await printerService.printDayPassTicket(ticketData)
-          console.log('Day pass ticket printed successfully')
-          alert(`✅ Véhicule ajouté avec succès!\n🎫 Pass journalier imprimé pour ${ticketData.licensePlate}`)
+          showNotification('✅ Véhicule ajouté avec pass journalier imprimé', 'success')
         } catch (printError) {
-          console.error('Failed to print day pass ticket:', printError)
-          alert(`✅ Véhicule ajouté, mais échec de l'impression du pass journalier.\nErreur: ${printError}`)
+          console.error('Print error:', printError)
+          const errorMsg = printError instanceof Error ? printError.message : String(printError)
+          showNotification(`❌ Erreur impression: ${errorMsg}`, 'error')
         }
       } else {
-        alert(`✅ Véhicule ajouté avec succès!`)
+        showNotification('✅ Véhicule ajouté avec succès!', 'success')
       }
       
-      setAddVehicleModalOpen(false)
-      setSelectedVehicle(null)
-      setSelectedDestination(null)
-      setSearchResults([])
-      setVehicleAuthorizedStations([])
-      
-      // Refresh the queue if we're currently viewing the destination we added to
-      const targetSummary = summaries.find(s => s.destinationId === selectedDestination.stationId)
-      if (targetSummary) {
-        setSelected(targetSummary)
-        // Load queue for that destination
-        try {
-          const response = await listQueue(selectedDestination.stationId)
+      // Refresh everything
+      await loadSummaries()
+      if (selected) {
+        const targetSummary = summaries.find(s => s.destinationId === destinationId)
+        if (targetSummary) {
+          setSelected(targetSummary)
+          const response = await listQueue(destinationId)
           const items = (response.data as any[]).map((e) => ({
             ...e,
             availableSeats: Number(e.availableSeats ?? 0),
@@ -876,13 +673,12 @@ export default function QueueManagement() {
             dayPassStatus: e.dayPassStatus ?? 'no_pass',
           })) as QueueEntry[]
           setQueue(items)
-        } catch (error) {
-          console.error('Failed to refresh queue:', error)
         }
       }
-      loadSummaries()
     } catch (error) {
-      console.error('Failed to add vehicle to queue:', error)
+      console.error('Failed to add vehicle:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur ajout véhicule: ${errorMsg}`, 'error')
     }
   }
 
@@ -928,7 +724,7 @@ export default function QueueManagement() {
 
     dayPassSearchTimeoutRef.current = setTimeout(() => {
       handleDayPassSearch(query)
-    }, 300)
+    }, 50)
   }, [handleDayPassSearch])
 
   const handleDayPassVehicleSelect = (vehicle: any) => {
@@ -944,11 +740,12 @@ export default function QueueManagement() {
       const response = await getVehicleDayPass(selectedDayPassVehicle.id)
       const dayPassData = response.data
       
-      if (dayPassData && dayPassData.isActive) {
-        // Check if it's paid: day pass exists AND vehicle has made at least one trip
-        const isPaid = dayPassData.hasTrip || false
+      console.log('Day pass data:', dayPassData)
+      
+      // If dayPassData exists, it means there's a valid day pass
+      if (dayPassData) {
         setDayPassStatus({
-          status: isPaid ? 'paid' : 'unpaid',
+          status: 'paid',
           details: dayPassData
         })
       } else {
@@ -994,10 +791,15 @@ export default function QueueManagement() {
 
     tripsSearchTimeoutRef.current = setTimeout(() => {
       handleExitPassSearch(query)
-    }, 300)
+    }, 50)
   }, [handleExitPassSearch])
 
   const handlePrintExitPass = async (trip: any, tripIndex: number) => {
+    const tripId = trip.id || trip.licensePlate
+    
+    // Add to printing set
+    setPrintingTripIds(prev => new Set(prev).add(tripId))
+    
     try {
       const staffInfo = getStaffInfo()
       const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
@@ -1021,87 +823,324 @@ export default function QueueManagement() {
       // Print the exit pass ticket
       await printerService.printExitPassTicket(exitPassTicketData)
       
-      alert(`✅ Laissez-passer imprimé avec succès!\n🚗 ${trip.licensePlate} - ${trip.destinationName}`)
+      showNotification(`✅ Laissez-passer imprimé: ${trip.licensePlate}`, 'success')
       
       // Close modal after successful print
       setExitPassModalOpen(false)
       setTrips([])
     } catch (error) {
       console.error('Failed to print exit pass for trip:', error)
-      alert(`❌ Échec de l'impression du laissez-passer.\nErreur: ${error}`)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur impression laissez-passer: ${errorMsg}`, 'error')
+    } finally {
+      // Remove from printing set
+      setPrintingTripIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(tripId)
+        return newSet
+      })
+    }
+  }
+
+  // Day pass printer handler
+  const handleDayPassPrinterSearch = useCallback(async (query: string) => {
+    setLoadingDayPasses(true)
+    try {
+      // Search for vehicles
+      const vehiclesResponse = await searchVehicles(query.trim())
+      const vehicles = vehiclesResponse.data || []
+      
+      // For each vehicle, check if they have a day pass
+      const vehiclesWithDayPass = []
+      for (const vehicle of vehicles) {
+        try {
+          const dayPassResponse = await getVehicleDayPass(vehicle.id)
+          if (dayPassResponse.data) {
+            vehiclesWithDayPass.push({
+              ...vehicle,
+              dayPass: dayPassResponse.data
+            })
+          }
+        } catch (error) {
+          // No day pass for this vehicle
+        }
+      }
+      
+      setDayPassesToPrint(vehiclesWithDayPass)
+    } catch (error) {
+      console.error('Failed to search day passes:', error)
+      setDayPassesToPrint([])
+    } finally {
+      setLoadingDayPasses(false)
+    }
+  }, [])
+
+  const handleDayPassPrinterSearchChange = useCallback((query: string) => {
+    setDayPassPrinterSearch(query)
+    
+    if (dayPassPrinterTimeoutRef.current) {
+      clearTimeout(dayPassPrinterTimeoutRef.current)
+    }
+
+    if (query.length === 0) {
+      handleDayPassPrinterSearch('')
+      return
+    }
+
+    dayPassPrinterTimeoutRef.current = setTimeout(() => {
+      handleDayPassPrinterSearch(query)
+    }, 300)
+  }, [handleDayPassPrinterSearch])
+
+  const handlePrintDayPass = async (vehicleWithDayPass: any) => {
+    const vehicleId = vehicleWithDayPass.id || vehicleWithDayPass.licensePlate
+    
+    // Add to printing set
+    setPrintingDayPassVehicleIds(prev => new Set(prev).add(vehicleId))
+    
+    try {
+      const staffInfo = getStaffInfo()
+      const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
+      
+      const dayPass = vehicleWithDayPass.dayPass
+      
+      const ticketData: TicketData = {
+        licensePlate: dayPass.licensePlate || vehicleWithDayPass.licensePlate,
+        destinationName: dayPass.destinationName || 'Station',
+        seatNumber: 0,
+        totalAmount: 0,
+        basePrice: 0,
+        createdBy: staffName,
+        createdAt: dayPass.purchaseDate || new Date().toISOString(),
+        stationName: "Station",
+        routeName: dayPass.destinationName || dayPass.licensePlate,
+        staffFirstName: staffInfo?.firstName || '',
+        staffLastName: staffInfo?.lastName || '',
+      };
+      
+      // Print the day pass ticket
+      await printerService.printDayPassTicket(ticketData)
+      
+      showNotification(`✅ Pass journalier imprimé: ${vehicleWithDayPass.licensePlate}`, 'success')
+      
+      // Close modal after successful print
+      setDayPassPrinterModalOpen(false)
+      setDayPassesToPrint([])
+    } catch (error) {
+      console.error('Failed to print day pass:', error)
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      showNotification(`❌ Erreur impression pass journalier: ${errorMsg}`, 'error')
+    } finally {
+      // Remove from printing set
+      setPrintingDayPassVehicleIds(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(vehicleId)
+        return newSet
+      })
     }
   }
 
   return (
     <div className="space-y-4">
+      {/* Notification Toast */}
+      {notification && (
+        <div 
+          className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg transform transition-all duration-300 max-w-md ${
+            notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+          }`}
+          style={{ animation: 'slideIn 0.3s ease-out' }}
+        >
+          <div className="flex items-center gap-2">
+            <span className="text-lg flex-shrink-0">{notification.type === 'success' ? '✅' : '❌'}</span>
+            <span className="font-medium break-words">{notification.message}</span>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
+
       {/* Printer Status Display */}
       <div className="flex justify-end mb-4">
         <PrinterStatusDisplay />
       </div>
 
       {/* Global Actions */}
-      <div className="flex justify-between items-center gap-2">
-        <div className="flex gap-2">
-          <button
-            onClick={async () => {
-              await loadSummaries()
-              if (selected) {
-                await loadQueue()
-              }
-            }}
-            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
-            title="Actualiser toutes les données"
-          >
-            🔄 Actualiser
-          </button>
-          <button
-            onClick={() => {
-              setSelectedDayPassVehicle(null)
-              setDayPassSearchResults([])
-              setDayPassSearching(false)
-              setDayPassSearchError(null)
-              setDayPassStatus(null)
-              setDayPassModalOpen(true)
-            }}
-            className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors text-sm"
-            title="Vérifier le statut du passe journal"
-          >
-            🎫 Vérifier Passe Jour
-          </button>
-          <button
-            onClick={async () => {
-              setExitPassModalOpen(true)
-              setLoadingTrips(true)
-              setTripsSearch('')
-              try {
-                const response = await listTodayTrips()
-                setTrips(Array.isArray(response.data) ? response.data : [])
-              } catch (error) {
-                console.error('Failed to load trips:', error)
-              } finally {
-                setLoadingTrips(false)
-              }
-            }}
-            className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
-            title="Imprimer laissez-passer sortie"
-          >
-            🚪 Imprimer Sortie
-          </button>
-        </div>
+      <div className="flex gap-2">
+        <button
+          onClick={async () => {
+            await loadSummaries()
+            if (selected) {
+              await loadQueue()
+            }
+          }}
+          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors text-sm"
+          title="Actualiser toutes les données"
+        >
+          🔄 Actualiser
+        </button>
         <button
           onClick={() => {
-            setSelectedVehicle(null)
-            setSelectedDestination(null)
-            setSearchResults([])
-            setSearching(false)
-            setSearchError(null)
-            setVehicleAuthorizedStations([])
-            setAddVehicleModalOpen(true)
+            setSelectedDayPassVehicle(null)
+            setDayPassSearchResults([])
+            setDayPassSearching(false)
+            setDayPassSearchError(null)
+            setDayPassStatus(null)
+            setDayPassModalOpen(true)
           }}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors text-sm"
+          className="px-4 py-2 bg-purple-500 text-white rounded hover:bg-purple-600 transition-colors text-sm"
+          title="Vérifier le statut du passe journal"
         >
-          ➕ Ajouter Véhicule
+          🎫 Vérifier Passe Jour
         </button>
+        <button
+          onClick={async () => {
+            setExitPassModalOpen(true)
+            setLoadingTrips(true)
+            setTripsSearch('')
+            try {
+              const response = await listTodayTrips()
+              setTrips(Array.isArray(response.data) ? response.data : [])
+            } catch (error) {
+              console.error('Failed to load trips:', error)
+            } finally {
+              setLoadingTrips(false)
+            }
+          }}
+          className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 transition-colors text-sm"
+          title="Imprimer laissez-passer sortie"
+        >
+          🚪 Imprimer Sortie
+        </button>
+        <button
+          onClick={() => {
+            setDayPassPrinterModalOpen(true)
+            setDayPassesToPrint([])
+            setDayPassPrinterSearch('')
+          }}
+          className="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition-colors text-sm"
+          title="Imprimer pass journalier"
+        >
+          🎫 Imprimer Passe Jour
+        </button>
+      </div>
+
+      {/* Add Vehicle - Always Visible */}
+      <div className="border rounded-lg p-4 bg-white">
+        <h3 className="text-lg font-medium mb-3">Ajouter un Véhicule à la File</h3>
+        
+        {/* Search Input */}
+        <div className="mb-3">
+            <input
+              type="text"
+              placeholder="Rechercher par plaque d'immatriculation..."
+              value={searchVehiclesQuery}
+              onChange={async (e) => {
+                const query = e.target.value
+                setSearchVehiclesQuery(query)
+                if (query.length === 0) {
+                  setSearchResults([])
+                  setSearching(false)
+                  setSearchError(null)
+                } else {
+                  await handleSearchVehicles(query)
+                }
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          
+          {searching && <div className="text-sm text-gray-500 mt-2">Loading...</div>}
+          {searchError && <div className="text-sm text-red-600 mt-2">{searchError}</div>}
+        </div>
+
+        {/* Search Results */}
+        {searchResults.length > 0 && !selectedVehicle && (
+          <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
+            {searchResults.map((vehicle: any) => (
+              <div
+                key={vehicle.id}
+                onClick={() => handleSelectVehicle(vehicle)}
+                className="p-3 border rounded cursor-pointer transition-colors hover:bg-gray-50"
+              >
+                <div className="font-medium">{vehicle.licensePlate}</div>
+                <div className="text-xs text-gray-500">
+                  Capacité: {vehicle.capacity} - {vehicle.isActive ? 'Actif' : 'Inactif'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Selected Vehicle & Destination Selection */}
+        {selectedVehicle && (
+          <div className="space-y-3">
+            <div className="p-3 bg-blue-50 rounded-lg">
+              <div className="text-sm text-gray-600 mb-1">Véhicule sélectionné :</div>
+              <div className="font-semibold">{selectedVehicle.licensePlate}</div>
+              <div className="text-xs text-gray-500">
+                Capacité: {selectedVehicle.capacity} - {selectedVehicle.isActive ? 'Actif' : 'Inactif'}
+              </div>
+            </div>
+
+            {!selectedDestination && vehicleAuthorizedStations.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sélectionner une destination :
+                </label>
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                  {vehicleAuthorizedStations.map((station: any) => (
+                    <div
+                      key={station.stationId}
+                      onClick={() => handleDestinationSelect(station.stationId, station.stationName)}
+                      className={`p-3 border rounded cursor-pointer transition-colors ${
+                        (selectedDestination && (selectedDestination as { stationId: string }).stationId === station.stationId)
+                          ? 'bg-blue-50 border-blue-500' 
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="font-medium">{station.stationName}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedDestination && (
+              <div className="p-3 bg-green-50 rounded-lg">
+                <div className="text-sm text-gray-600 mb-1">Destination sélectionnée :</div>
+                <div className="font-semibold">{selectedDestination.stationName}</div>
+                <button
+                  onClick={handleAddVehicle}
+                  disabled={addingVehicle}
+                  className={`mt-2 w-full px-4 py-2 rounded transition-colors ${
+                    addingVehicle 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-green-500 text-white hover:bg-green-600'
+                  }`}
+                >
+                  {addingVehicle ? '⏳ Ajout en cours...' : '✅ Ajouter à la File'}
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={resetAddVehicleForm}
+              className="text-sm text-gray-600 hover:text-gray-800"
+            >
+              ← Choisir un autre véhicule
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Destination summaries */}
@@ -1187,30 +1226,6 @@ export default function QueueManagement() {
         fromEntry={changeDestFromEntry}
         authorizedStations={authorizedStations}
         onConfirm={handleConfirmChangeDestination}
-      />
-
-      {/* Add vehicle modal */}
-      <AddVehicleModal
-        isOpen={addVehicleModalOpen}
-        onClose={() => {
-          setAddVehicleModalOpen(false)
-          setSelectedVehicle(null)
-          setSelectedDestination(null)
-          setSearchResults([])
-          setSearching(false)
-          setSearchError(null)
-          setVehicleAuthorizedStations([])
-        }}
-        onSearchChange={handleSearchVehicles}
-        searchResults={searchResults}
-        searching={searching}
-        searchError={searchError}
-        selectedVehicle={selectedVehicle}
-        onSelectVehicle={handleSelectVehicle}
-        authorizedStations={vehicleAuthorizedStations}
-        selectedDestination={selectedDestination}
-        onDestinationSelect={handleDestinationSelect}
-        onAddToQueue={handleAddVehicle}
       />
 
       {/* Day Pass Checker modal */}
@@ -1331,26 +1346,21 @@ export default function QueueManagement() {
                   <div className="mb-4 p-3 rounded-lg border-2">
                     {dayPassStatus.status === 'paid' && (
                       <div className="bg-green-50 border-green-500">
-                        <div className="font-semibold text-green-700 mb-2">✅ Passe Jour PAYÉ</div>
+                        <div className="font-semibold text-green-700 mb-2">✅ Passe Jour ACTIF</div>
                         <div className="text-sm text-gray-700">
-                          <p>Le véhicule a effectué au moins un voyage après l'achat du passe journal.</p>
+                          <p>Ce véhicule a un passe journal valide.</p>
                           {dayPassStatus.details && (
-                            <p className="mt-2 text-xs">
-                              Acheté le: {new Date(dayPassStatus.details.createdAt).toLocaleString()}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    {dayPassStatus.status === 'unpaid' && (
-                      <div className="bg-yellow-50 border-yellow-500">
-                        <div className="font-semibold text-yellow-700 mb-2">⚠️ Passe Jour NON PAYÉ</div>
-                        <div className="text-sm text-gray-700">
-                          <p>Le passe journal a été acheté mais le véhicule n'a pas encore effectué de voyage ou a été récemment ajouté aux enregistrements de voyage.</p>
-                          {dayPassStatus.details && (
-                            <p className="mt-2 text-xs">
-                              Acheté le: {new Date(dayPassStatus.details.createdAt).toLocaleString()}
-                            </p>
+                            <>
+                              <p className="mt-2 text-xs">
+                                Plaque: {dayPassStatus.details.licensePlate}
+                              </p>
+                              <p className="text-xs">
+                                Acheté le: {new Date(dayPassStatus.details.purchaseDate).toLocaleString()}
+                              </p>
+                              <p className="text-xs">
+                                Valide jusqu'au: {new Date(dayPassStatus.details.validUntil).toLocaleString()}
+                              </p>
+                            </>
                           )}
                         </div>
                       </div>
@@ -1432,26 +1442,38 @@ export default function QueueManagement() {
               {/* Trips list */}
               {!loadingTrips && trips.length > 0 && (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {trips.map((trip: any, index: number) => (
-                    <div
-                      key={trip.id || index}
-                      onClick={() => handlePrintExitPass(trip, index)}
-                      className="p-3 border rounded cursor-pointer transition-colors hover:bg-orange-50 hover:border-orange-500"
-                    >
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{trip.licensePlate}</div>
-                          <div className="text-sm text-gray-600">{trip.destinationName}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-medium">{trip.seatsBooked || 0} sièges</div>
-                          <div className="text-xs text-gray-500">
-                            {trip.startTime ? new Date(trip.startTime).toLocaleTimeString() : 'Aujourd\'hui'}
+                  {trips.map((trip: any, index: number) => {
+                    const tripId = trip.id || trip.licensePlate
+                    const isPrinting = printingTripIds.has(tripId)
+                    
+                    return (
+                      <div
+                        key={trip.id || index}
+                        onClick={() => !isPrinting && handlePrintExitPass(trip, index)}
+                        className={`p-3 border rounded transition-colors ${
+                          isPrinting 
+                            ? 'bg-orange-100 border-orange-300 opacity-60 cursor-wait' 
+                            : 'cursor-pointer hover:bg-orange-50 hover:border-orange-500'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium flex items-center gap-2">
+                              {trip.licensePlate}
+                              {isPrinting && <span className="text-orange-500 animate-pulse">⏳ Impression...</span>}
+                            </div>
+                            <div className="text-sm text-gray-600">{trip.destinationName}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-medium">{trip.seatsBooked || 0} sièges</div>
+                            <div className="text-xs text-gray-500">
+                              {trip.startTime ? new Date(trip.startTime).toLocaleTimeString() : 'Aujourd\'hui'}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
 
@@ -1475,6 +1497,112 @@ export default function QueueManagement() {
                     setExitPassModalOpen(false)
                     setTrips([])
                     setTripsSearch('')
+                  }}
+                  className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Day Pass Printer modal */}
+      {dayPassPrinterModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Imprimer Pass Journalier</h2>
+                <button
+                  onClick={() => {
+                    setDayPassPrinterModalOpen(false)
+                    setDayPassesToPrint([])
+                    setDayPassPrinterSearch('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Search input */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="Rechercher par immatriculation..."
+                  value={dayPassPrinterSearch}
+                  onChange={(e) => handleDayPassPrinterSearchChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  autoFocus
+                />
+              </div>
+
+              {/* Loading state */}
+              {loadingDayPasses && (
+                <div className="text-center py-8 text-gray-500">Recherche en cours...</div>
+              )}
+
+              {/* Vehicles with day passes list */}
+              {!loadingDayPasses && dayPassesToPrint.length > 0 && (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {dayPassesToPrint.map((vehicleWithDayPass: any, index: number) => {
+                    const vehicleId = vehicleWithDayPass.id || vehicleWithDayPass.licensePlate
+                    const isPrinting = printingDayPassVehicleIds.has(vehicleId)
+                    
+                    return (
+                      <div
+                        key={vehicleWithDayPass.id || index}
+                        onClick={() => !isPrinting && handlePrintDayPass(vehicleWithDayPass)}
+                        className={`p-3 border rounded transition-colors ${
+                          isPrinting 
+                            ? 'bg-indigo-100 border-indigo-300 opacity-60 cursor-wait' 
+                            : 'cursor-pointer hover:bg-indigo-50 hover:border-indigo-500'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <div className="font-medium flex items-center gap-2">
+                              {vehicleWithDayPass.licensePlate}
+                              {isPrinting && <span className="text-indigo-500 animate-pulse">⏳ Impression...</span>}
+                            </div>
+                            <div className="text-sm text-gray-600">Pass journalier actif</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-xs text-gray-500">
+                              {vehicleWithDayPass.dayPass?.purchaseDate 
+                                ? new Date(vehicleWithDayPass.dayPass.purchaseDate).toLocaleDateString()
+                                : 'Aujourd\'hui'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* No results found */}
+              {!loadingDayPasses && dayPassesToPrint.length === 0 && dayPassPrinterSearch !== '' && (
+                <div className="text-center py-8 text-gray-500">
+                  Aucun véhicule avec pass journalier trouvé pour "{dayPassPrinterSearch}"
+                </div>
+              )}
+
+              {!loadingDayPasses && dayPassesToPrint.length === 0 && dayPassPrinterSearch === '' && (
+                <div className="text-center py-8 text-gray-500">
+                  Recherchez un véhicule pour imprimer son pass journalier
+                </div>
+              )}
+
+              {/* Close button */}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => {
+                    setDayPassPrinterModalOpen(false)
+                    setDayPassesToPrint([])
+                    setDayPassPrinterSearch('')
                   }}
                   className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
                 >
