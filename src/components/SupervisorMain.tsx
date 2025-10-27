@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { listStaff, createStaff, updateStaff, deleteStaff, listVehicles, createVehicle, updateVehicle, deleteVehicle, listAuthorizedStations, addAuthorizedStation, deleteAuthorizedStation } from '@/api/client'
 import EnhancedStatistics from './EnhancedStatistics'
 import QueueManagement from './QueueManagement'
@@ -9,13 +9,12 @@ function StaffView() {
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingStaff, setEditingStaff] = useState<any | null>(null)
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    cin: '',
-    phoneNumber: '',
-    role: 'WORKER'
-  })
+  
+  const firstNameRef = useRef<HTMLInputElement>(null)
+  const lastNameRef = useRef<HTMLInputElement>(null)
+  const cinRef = useRef<HTMLInputElement>(null)
+  const phoneNumberRef = useRef<HTMLInputElement>(null)
+  const roleRef = useRef<HTMLSelectElement>(null)
 
   useEffect(() => {
     loadStaff()
@@ -36,6 +35,14 @@ function StaffView() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      const formData = {
+        firstName: firstNameRef.current?.value || '',
+        lastName: lastNameRef.current?.value || '',
+        cin: cinRef.current?.value || '',
+        phoneNumber: phoneNumberRef.current?.value || '',
+        role: roleRef.current?.value || 'WORKER'
+      }
+      
       if (editingStaff) {
         await updateStaff(editingStaff.id, formData)
       } else {
@@ -43,7 +50,6 @@ function StaffView() {
       }
       setShowForm(false)
       setEditingStaff(null)
-      setFormData({ firstName: '', lastName: '', cin: '', phoneNumber: '', role: 'WORKER' })
       loadStaff()
     } catch (error) {
       console.error('Failed to save staff:', error)
@@ -52,13 +58,12 @@ function StaffView() {
 
   const handleEdit = (staffMember: any) => {
     setEditingStaff(staffMember)
-    setFormData({
-      firstName: staffMember.firstName,
-      lastName: staffMember.lastName,
-      cin: staffMember.cin,
-      phoneNumber: staffMember.phoneNumber,
-      role: staffMember.role
-    })
+    // Set form values for editing
+    if (firstNameRef.current) firstNameRef.current.value = staffMember.firstName || ''
+    if (lastNameRef.current) lastNameRef.current.value = staffMember.lastName || ''
+    if (cinRef.current) cinRef.current.value = staffMember.cin || ''
+    if (phoneNumberRef.current) phoneNumberRef.current.value = staffMember.phoneNumber || ''
+    if (roleRef.current) roleRef.current.value = staffMember.role || 'WORKER'
     setShowForm(true)
   }
 
@@ -90,41 +95,37 @@ function StaffView() {
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              ref={firstNameRef}
               placeholder="Prénom"
-              value={formData.firstName}
-              onChange={(e) => setFormData({...formData, firstName: e.target.value})}
               className="px-2 py-1 border rounded"
               required
             />
             <input
               type="text"
+              ref={lastNameRef}
               placeholder="Nom"
-              value={formData.lastName}
-              onChange={(e) => setFormData({...formData, lastName: e.target.value})}
               className="px-2 py-1 border rounded"
               required
             />
             <input
               type="text"
+              ref={cinRef}
               placeholder="CIN (8 chiffres)"
-              value={formData.cin}
-              onChange={(e) => setFormData({...formData, cin: e.target.value})}
               className="px-2 py-1 border rounded"
               maxLength={8}
               required
             />
             <input
               type="text"
+              ref={phoneNumberRef}
               placeholder="Numéro de Téléphone"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
               className="px-2 py-1 border rounded"
               required
             />
             <select
-              value={formData.role}
-              onChange={(e) => setFormData({...formData, role: e.target.value})}
+              ref={roleRef}
               className="px-2 py-1 border rounded"
+              defaultValue="WORKER"
             >
               <option value="WORKER">Employé</option>
               <option value="SUPERVISOR">Superviseur</option>
@@ -138,7 +139,12 @@ function StaffView() {
                 onClick={() => {
                   setShowForm(false)
                   setEditingStaff(null)
-                  setFormData({ firstName: '', lastName: '', cin: '', phoneNumber: '', role: 'WORKER' })
+                  // Clear all inputs
+                  if (firstNameRef.current) firstNameRef.current.value = ''
+                  if (lastNameRef.current) lastNameRef.current.value = ''
+                  if (cinRef.current) cinRef.current.value = ''
+                  if (phoneNumberRef.current) phoneNumberRef.current.value = ''
+                  if (roleRef.current) roleRef.current.value = 'WORKER'
                 }}
                 className="px-3 py-1 bg-gray-500 text-white rounded text-sm"
               >
@@ -203,48 +209,18 @@ function StaffView() {
 
 function VehiclesView() {
   const [vehicles, setVehicles] = useState<any[]>([])
-  const [filteredVehicles, setFilteredVehicles] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [editingVehicle, setEditingVehicle] = useState<any | null>(null)
   const [authorized, setAuthorized] = useState<any[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  // const [authForm, setAuthForm] = useState({ stationId: '', stationName: '', priority: 1, isDefault: false })
-  const [formData, setFormData] = useState({
-    licensePlate: '',
-    capacity: 8,
-    phoneNumber: '',
-    isActive: true,
-    isAvailable: true,
-    isBanned: false,
-    selectedStations: [] as string[]
-  })
-
-  const formatLicensePlate = (value: string) => {
-    // Remove all spaces and convert to uppercase
-    let cleaned = value.replace(/\s/g, '').toUpperCase()
-    
-    // Extract numbers and TUN
-    const match = cleaned.match(/^(\d{2,3})TUN(\d{1,4})$/)
-    if (match) {
-      const [, left, right] = match
-      return `${left} TUN ${right}`
-    }
-    
-    // If partial input, try to format it
-    if (cleaned.includes('TUN')) {
-      const parts = cleaned.split('TUN')
-      if (parts.length === 2) {
-        const left = parts[0].replace(/\D/g, '').slice(0, 3)
-        const right = parts[1].replace(/\D/g, '').slice(0, 4)
-        if (left.length >= 2 && right.length >= 1) {
-          return `${left} TUN ${right}`
-        }
-      }
-    }
-    
-    return cleaned
-  }
+  
+  const licensePlateRef = useRef<HTMLInputElement>(null)
+  const capacityRef = useRef<HTMLInputElement>(null)
+  const phoneNumberRef = useRef<HTMLInputElement>(null)
+  const isActiveRef = useRef<HTMLInputElement>(null)
+  const isAvailableRef = useRef<HTMLInputElement>(null)
+  const isBannedRef = useRef<HTMLInputElement>(null)
+  const selectedStationsRef = useRef<{[key: string]: HTMLInputElement}>({})
 
   const validateLicensePlate = (plate: string) => {
     const cleaned = plate.replace(/\s/g, '').toUpperCase()
@@ -260,7 +236,6 @@ function VehiclesView() {
     try {
       const response = await listVehicles()
       setVehicles(response.data)
-      setFilteredVehicles(response.data)
     } catch (error) {
       console.error('Failed to load vehicles:', error)
     } finally {
@@ -268,48 +243,52 @@ function VehiclesView() {
     }
   }
 
-  const handleSearch = (query: string) => {
-    setSearchQuery(query)
-    if (!query.trim()) {
-      setFilteredVehicles(vehicles)
-      return
-    }
-    const filtered = vehicles.filter(v => 
-      v.licensePlate?.toLowerCase().includes(query.toLowerCase()) ||
-      v.phoneNumber?.includes(query)
-    )
-    setFilteredVehicles(filtered)
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    const licensePlate = licensePlateRef.current?.value || ''
+    const capacity = parseInt(capacityRef.current?.value || '8')
+    const phoneNumber = phoneNumberRef.current?.value || ''
+    const isActive = isActiveRef.current?.checked ?? true
+    const isAvailable = isAvailableRef.current?.checked ?? true
+    const isBanned = isBannedRef.current?.checked ?? false
+    
+    // Get selected stations from checkboxes
+    const stationIds = ['station-jemmal', 'station-ksar-hlel', 'station-moknin', 'station-teboulba']
+    const currentSelected = stationIds.filter(id => selectedStationsRef.current[id]?.checked)
+    
     // Validate license plate format
-    if (!validateLicensePlate(formData.licensePlate)) {
+    if (!validateLicensePlate(licensePlate)) {
       alert('Invalid license plate format. Use format: 123 TUN 4567 (2-3 digits, TUN, 1-4 digits)')
       return
     }
     
     try {
+      const vehicleData = {
+        licensePlate,
+        capacity,
+        phoneNumber,
+        isActive,
+        isAvailable,
+        isBanned
+      }
+      
       if (editingVehicle) {
-        // Update vehicle basic info
-        const vehicleData = { ...formData }
-        // delete vehicleData.selectedStations
         await updateVehicle(editingVehicle.id, vehicleData)
         
         // Update authorized stations
         const currentStations = authorized.map((station: any) => station.stationId)
-        const selectedStations = formData.selectedStations
         
         // Remove stations that are no longer selected
         for (const station of authorized) {
-          if (!selectedStations.includes(station.stationId)) {
+          if (!currentSelected.includes(station.stationId)) {
             await deleteAuthorizedStation(editingVehicle.id, station.id)
           }
         }
         
         // Add new stations
-        for (const stationId of selectedStations) {
+        for (const stationId of currentSelected) {
           if (!currentStations.includes(stationId)) {
             const stationName = stationId === 'station-jemmal' ? 'JEMMAL' :
                               stationId === 'station-ksar-hlel' ? 'KSAR HLEL' :
@@ -319,18 +298,16 @@ function VehiclesView() {
               stationId,
               stationName,
               priority: 1,
-              isDefault: selectedStations.length === 1
+              isDefault: currentSelected.length === 1
             })
           }
         }
       } else {
-        const vehicleData = { ...formData }
-        // delete vehicleData.selectedStations
         const newVehicle = await createVehicle(vehicleData)
         
         // Add selected stations to the new vehicle
-        if (formData.selectedStations.length > 0) {
-          for (const stationId of formData.selectedStations) {
+        if (currentSelected.length > 0) {
+          for (const stationId of currentSelected) {
             const stationName = stationId === 'station-jemmal' ? 'JEMMAL' :
                               stationId === 'station-ksar-hlel' ? 'KSAR HLEL' :
                               stationId === 'station-moknin' ? 'MOKNIN' :
@@ -339,14 +316,13 @@ function VehiclesView() {
               stationId,
               stationName,
               priority: 1,
-              isDefault: formData.selectedStations.length === 1
+              isDefault: currentSelected.length === 1
             })
           }
         }
       }
       setShowForm(false)
       setEditingVehicle(null)
-      setFormData({ licensePlate: '', capacity: 8, phoneNumber: '', isActive: true, isAvailable: true, isBanned: false, selectedStations: [] })
       loadVehicles()
     } catch (error) {
       console.error('Failed to save vehicle:', error)
@@ -355,22 +331,30 @@ function VehiclesView() {
 
   const handleEdit = (vehicle: any) => {
     setEditingVehicle(vehicle)
-    setFormData({
-      licensePlate: vehicle.licensePlate,
-      capacity: vehicle.capacity,
-      phoneNumber: vehicle.phoneNumber || '',
-      isActive: vehicle.isActive,
-      isAvailable: vehicle.isAvailable,
-      isBanned: vehicle.isBanned,
-      selectedStations: []
-    })
+    
+    // Set values in refs
+    if (licensePlateRef.current) licensePlateRef.current.value = vehicle.licensePlate || ''
+    if (capacityRef.current) capacityRef.current.value = vehicle.capacity?.toString() || '8'
+    if (phoneNumberRef.current) phoneNumberRef.current.value = vehicle.phoneNumber || ''
+    if (isActiveRef.current) isActiveRef.current.checked = vehicle.isActive ?? true
+    if (isAvailableRef.current) isAvailableRef.current.checked = vehicle.isAvailable ?? true
+    if (isBannedRef.current) isBannedRef.current.checked = vehicle.isBanned ?? false
+    
     // load authorized stations for this vehicle
     listAuthorizedStations(vehicle.id).then((r) => {
       setAuthorized(r.data)
       // Set selected stations based on current authorized stations
       const currentStations = r.data.map((station: any) => station.stationId)
-      setFormData(prev => ({...prev, selectedStations: currentStations}))
-    }).catch(() => setAuthorized([]))
+      
+      // Set checkboxes for authorized stations
+      currentStations.forEach(stationId => {
+        if (selectedStationsRef.current[stationId]) {
+          selectedStationsRef.current[stationId].checked = true
+        }
+      })
+    }).catch(() => {
+      setAuthorized([])
+    })
   }
 
   const handleDelete = async (id: string) => {
@@ -403,8 +387,6 @@ function VehiclesView() {
         <input
           type="text"
           placeholder="Search by license plate or phone number..."
-          value={searchQuery}
-          onChange={(e) => handleSearch(e.target.value)}
           className="w-full px-3 py-2 border rounded"
         />
       </div>
@@ -415,53 +397,47 @@ function VehiclesView() {
           <form onSubmit={handleSubmit} className="grid grid-cols-2 gap-3">
             <input
               type="text"
+              ref={licensePlateRef}
               placeholder="License Plate (e.g., 123 TUN 4567)"
-              value={formData.licensePlate}
-              onChange={(e) => {
-                const formatted = formatLicensePlate(e.target.value)
-                setFormData({...formData, licensePlate: formatted})
-              }}
               className="px-2 py-1 border rounded"
               required
             />
             <input
               type="number"
+              ref={capacityRef}
               placeholder="Capacity"
-              value={formData.capacity}
-              onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value)})}
+              defaultValue="8"
               className="px-2 py-1 border rounded"
               min="1"
               required
             />
             <input
               type="text"
+              ref={phoneNumberRef}
               placeholder="Phone Number (optional)"
-              value={formData.phoneNumber}
-              onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
               className="px-2 py-1 border rounded"
             />
             <div className="flex gap-4">
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.isActive}
-                  onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                  ref={isActiveRef}
+                  defaultChecked
                 />
                 Active
               </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.isAvailable}
-                  onChange={(e) => setFormData({...formData, isAvailable: e.target.checked})}
+                  ref={isAvailableRef}
+                  defaultChecked
                 />
                 Available
               </label>
               <label className="flex items-center gap-2">
                 <input
                   type="checkbox"
-                  checked={formData.isBanned}
-                  onChange={(e) => setFormData({...formData, isBanned: e.target.checked})}
+                  ref={isBannedRef}
                 />
                 Banned
               </label>
@@ -479,14 +455,7 @@ function VehiclesView() {
                     <label key={station.id} className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={formData.selectedStations.includes(station.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({...formData, selectedStations: [...formData.selectedStations, station.id]})
-                          } else {
-                            setFormData({...formData, selectedStations: formData.selectedStations.filter(s => s !== station.id)})
-                          }
-                        }}
+                        ref={(el) => { if (el) selectedStationsRef.current[station.id] = el }}
                       />
                       {station.name}
                     </label>
@@ -496,8 +465,11 @@ function VehiclesView() {
                   type="button"
                   className="mt-2 px-3 py-1 bg-purple-500 text-white rounded text-sm"
                   onClick={() => {
-                    const allStations = ['station-jemmal', 'station-ksar-hlel', 'station-moknin', 'station-teboulba']
-                    setFormData({...formData, selectedStations: allStations})
+                    Object.keys(selectedStationsRef.current).forEach(key => {
+                      if (selectedStationsRef.current[key]) {
+                        selectedStationsRef.current[key].checked = true
+                      }
+                    })
                   }}
                 >
                   Select All Governorates
@@ -512,7 +484,6 @@ function VehiclesView() {
                 onClick={() => {
                   setShowForm(false)
                   setEditingVehicle(null)
-                  setFormData({ licensePlate: '', capacity: 8, phoneNumber: '', isActive: true, isAvailable: true, isBanned: false, selectedStations: [] })
                 }}
                 className="px-3 py-1 bg-gray-500 text-white rounded text-sm"
               >
@@ -525,11 +496,8 @@ function VehiclesView() {
       )}
 
       {loading && <div className="text-sm">Loading vehicles...</div>}
-      {!loading && filteredVehicles.length > 0 && (
+      {!loading && vehicles.length > 0 && (
         <div className="overflow-x-auto">
-          <div className="text-xs text-gray-500 mb-2">
-            Showing {filteredVehicles.length} of {vehicles.length} vehicles
-          </div>
           <table className="w-full text-sm border">
             <thead className="bg-gray-50">
               <tr>
@@ -541,7 +509,7 @@ function VehiclesView() {
               </tr>
             </thead>
             <tbody>
-              {filteredVehicles.map((v) => (
+              {vehicles.map((v) => (
                 <tr key={v.id}>
                   <td className="p-2 border font-medium">{v.licensePlate}</td>
                   <td className="p-2 border">{v.capacity}</td>
@@ -602,11 +570,6 @@ function VehiclesView() {
           </table>
         </div>
       )}
-      {!loading && filteredVehicles.length === 0 && vehicles.length > 0 && (
-        <div className="text-center py-8 text-gray-500">
-          No vehicles found matching your search
-        </div>
-      )}
       {!loading && vehicles.length === 0 && (
         <div className="text-center py-8 text-gray-500">
           No vehicles registered yet
@@ -618,7 +581,6 @@ function VehiclesView() {
         isOpen={editingVehicle !== null}
         onClose={() => {
           setEditingVehicle(null)
-          setFormData({ licensePlate: '', capacity: 8, phoneNumber: '', isActive: true, isAvailable: true, isBanned: false, selectedStations: [] })
         }}
         title="Edit Vehicle"
       >
@@ -628,11 +590,7 @@ function VehiclesView() {
               <label className="block text-sm font-medium mb-1">License Plate</label>
               <input
                 type="text"
-                value={formData.licensePlate}
-                onChange={(e) => {
-                  const formatted = formatLicensePlate(e.target.value)
-                  setFormData({...formData, licensePlate: formatted})
-                }}
+                ref={licensePlateRef}
                 className="w-full px-3 py-2 border rounded"
                 required
               />
@@ -641,8 +599,7 @@ function VehiclesView() {
               <label className="block text-sm font-medium mb-1">Capacity</label>
               <input
                 type="number"
-                value={formData.capacity}
-                onChange={(e) => setFormData({...formData, capacity: parseInt(e.target.value)})}
+                ref={capacityRef}
                 className="w-full px-3 py-2 border rounded"
                 min="1"
                 required
@@ -652,8 +609,7 @@ function VehiclesView() {
               <label className="block text-sm font-medium mb-1">Phone Number (optional)</label>
               <input
                 type="text"
-                value={formData.phoneNumber}
-                onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})}
+                ref={phoneNumberRef}
                 className="w-full px-3 py-2 border rounded"
               />
             </div>
@@ -663,24 +619,21 @@ function VehiclesView() {
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={formData.isActive}
-                    onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
+                    ref={isActiveRef}
                   />
                   Active
                 </label>
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={formData.isAvailable}
-                    onChange={(e) => setFormData({...formData, isAvailable: e.target.checked})}
+                    ref={isAvailableRef}
                   />
                   Available
                 </label>
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={formData.isBanned}
-                    onChange={(e) => setFormData({...formData, isBanned: e.target.checked})}
+                    ref={isBannedRef}
                   />
                   Banned
                 </label>
@@ -700,14 +653,7 @@ function VehiclesView() {
                 <label key={station.id} className="flex items-center gap-2">
                   <input
                     type="checkbox"
-                    checked={formData.selectedStations.includes(station.id)}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setFormData({...formData, selectedStations: [...formData.selectedStations, station.id]})
-                      } else {
-                        setFormData({...formData, selectedStations: formData.selectedStations.filter(s => s !== station.id)})
-                      }
-                    }}
+                    ref={(el) => { if (el) selectedStationsRef.current[station.id] = el }}
                   />
                   {station.name}
                 </label>
@@ -717,8 +663,11 @@ function VehiclesView() {
               type="button"
               className="mt-2 px-3 py-1 bg-purple-500 text-white rounded text-sm"
               onClick={() => {
-                const allStations = ['station-jemmal', 'station-ksar-hlel', 'station-moknin', 'station-teboulba']
-                setFormData({...formData, selectedStations: allStations})
+                Object.keys(selectedStationsRef.current).forEach(key => {
+                  if (selectedStationsRef.current[key]) {
+                    selectedStationsRef.current[key].checked = true
+                  }
+                })
               }}
             >
               Select All Governorates
@@ -730,7 +679,6 @@ function VehiclesView() {
               type="button" 
               onClick={() => {
                 setEditingVehicle(null)
-                setFormData({ licensePlate: '', capacity: 8, phoneNumber: '', isActive: true, isAvailable: true, isBanned: false, selectedStations: [] })
               }}
               className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
             >

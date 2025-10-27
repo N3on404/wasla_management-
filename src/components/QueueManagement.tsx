@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { 
   listQueueSummaries, 
   listQueue, 
@@ -255,7 +255,6 @@ function ChangeDestinationModal({
 function AddVehicleModal({
   isOpen,
   onClose,
-  vehicleSearchQuery,
   onSearchChange,
   searchResults,
   searching,
@@ -268,6 +267,39 @@ function AddVehicleModal({
   onAddToQueue
 }: any) {
   const [showDestinationSelection, setShowDestinationSelection] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const searchTimeoutRef = useRef<NodeJS.Timeout>()
+
+  const handleSearchChange = useCallback((query: string) => {
+    setSearchQuery(query)
+    
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current)
+    }
+
+    if (query.length === 0) {
+      onSearchChange('')
+      return
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      onSearchChange(query)
+    }, 300)
+  }, [onSearchChange])
+
+  // Reset search when modal opens/closes
+  useEffect(() => {
+    if (isOpen) {
+      setSearchQuery('')
+    }
+    
+    // Cleanup timeout when modal closes
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [isOpen])
 
   if (!isOpen) return null
 
@@ -296,8 +328,8 @@ function AddVehicleModal({
                 <input
                   type="text"
                   placeholder="Rechercher par plaque d'immatriculation..."
-                  value={vehicleSearchQuery}
-                  onChange={(e) => onSearchChange(e.target.value)}
+                  value={searchQuery}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   autoFocus
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
@@ -334,6 +366,8 @@ function AddVehicleModal({
               </div>
             </>
           )}
+
+
 
           {/* Step 2: Select Destination */}
           {selectedVehicle && !showDestinationSelection && (
@@ -499,7 +533,6 @@ export default function QueueManagement() {
   
   // Add vehicle modal state
   const [addVehicleModalOpen, setAddVehicleModalOpen] = useState(false)
-  const [vehicleSearchQuery, setVehicleSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
@@ -516,12 +549,14 @@ export default function QueueManagement() {
   const [selectedDayPassVehicle, setSelectedDayPassVehicle] = useState<any>(null)
   const [dayPassStatus, setDayPassStatus] = useState<{status: string; details: any} | null>(null)
   const [checkingDayPass, setCheckingDayPass] = useState(false)
+  const dayPassSearchTimeoutRef = useRef<NodeJS.Timeout>()
 
   // Exit pass printer state
   const [exitPassModalOpen, setExitPassModalOpen] = useState(false)
   const [trips, setTrips] = useState<any[]>([])
   const [loadingTrips, setLoadingTrips] = useState(false)
   const [tripsSearch, setTripsSearch] = useState('')
+  const tripsSearchTimeoutRef = useRef<NodeJS.Timeout>()
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -549,7 +584,6 @@ export default function QueueManagement() {
         if (!addVehicleModalOpen) {
           setSelectedVehicle(null)
           setSelectedDestination(null)
-          setVehicleSearchQuery('')
           setSearchResults([])
           setSearching(false)
           setSearchError(null)
@@ -564,6 +598,32 @@ export default function QueueManagement() {
       window.removeEventListener('keydown', handleKeyDown)
     }
   }, [addVehicleModalOpen])
+
+  // Day Pass modal - reset search and cleanup
+  useEffect(() => {
+    if (dayPassModalOpen) {
+      setDayPassSearchQuery('')
+    }
+    
+    return () => {
+      if (dayPassSearchTimeoutRef.current) {
+        clearTimeout(dayPassSearchTimeoutRef.current)
+      }
+    }
+  }, [dayPassModalOpen])
+
+  // Exit Pass modal - reset search and cleanup
+  useEffect(() => {
+    if (exitPassModalOpen) {
+      setTripsSearch('')
+    }
+    
+    return () => {
+      if (tripsSearchTimeoutRef.current) {
+        clearTimeout(tripsSearchTimeoutRef.current)
+      }
+    }
+  }, [exitPassModalOpen])
 
   const loadSummaries = async () => {
     try {
@@ -705,7 +765,6 @@ export default function QueueManagement() {
   }
 
   const handleSearchVehicles = async (query: string) => {
-    setVehicleSearchQuery(query)
     setSearchError(null)
     
     if (query.length === 0) {
@@ -796,7 +855,6 @@ export default function QueueManagement() {
       setAddVehicleModalOpen(false)
       setSelectedVehicle(null)
       setSelectedDestination(null)
-      setVehicleSearchQuery('')
       setSearchResults([])
       setVehicleAuthorizedStations([])
       
@@ -829,8 +887,7 @@ export default function QueueManagement() {
   }
 
   // Day pass checker handlers
-  const handleDayPassSearch = async (query: string) => {
-    setDayPassSearchQuery(query)
+  const handleDayPassSearch = useCallback(async (query: string) => {
     setDayPassSearchError(null)
     
     if (query.length === 0) {
@@ -855,7 +912,24 @@ export default function QueueManagement() {
     } finally {
       setDayPassSearching(false)
     }
-  }
+  }, [])
+
+  const handleDayPassSearchChange = useCallback((query: string) => {
+    setDayPassSearchQuery(query)
+    
+    if (dayPassSearchTimeoutRef.current) {
+      clearTimeout(dayPassSearchTimeoutRef.current)
+    }
+
+    if (query.length === 0) {
+      handleDayPassSearch('')
+      return
+    }
+
+    dayPassSearchTimeoutRef.current = setTimeout(() => {
+      handleDayPassSearch(query)
+    }, 300)
+  }, [handleDayPassSearch])
 
   const handleDayPassVehicleSelect = (vehicle: any) => {
     setSelectedDayPassVehicle(vehicle)
@@ -892,6 +966,37 @@ export default function QueueManagement() {
   }
 
   // Exit pass handler
+  const handleExitPassSearch = useCallback(async (query: string) => {
+    setLoadingTrips(true)
+    try {
+      const response = await listTodayTrips(query.trim())
+      setTrips(Array.isArray(response.data) ? response.data : [])
+    } catch (error) {
+      console.error('Failed to search trips:', error)
+      setTrips([])
+    } finally {
+      setLoadingTrips(false)
+    }
+  }, [])
+
+  const handleExitPassSearchChange = useCallback((query: string) => {
+    setTripsSearch(query)
+    
+    if (tripsSearchTimeoutRef.current) {
+      clearTimeout(tripsSearchTimeoutRef.current)
+    }
+
+    if (query.length === 0) {
+      // Load all trips if search is empty
+      handleExitPassSearch('')
+      return
+    }
+
+    tripsSearchTimeoutRef.current = setTimeout(() => {
+      handleExitPassSearch(query)
+    }, 300)
+  }, [handleExitPassSearch])
+
   const handlePrintExitPass = async (trip: any, tripIndex: number) => {
     try {
       const staffInfo = getStaffInfo()
@@ -952,7 +1057,6 @@ export default function QueueManagement() {
           <button
             onClick={() => {
               setSelectedDayPassVehicle(null)
-              setDayPassSearchQuery('')
               setDayPassSearchResults([])
               setDayPassSearching(false)
               setDayPassSearchError(null)
@@ -988,7 +1092,6 @@ export default function QueueManagement() {
           onClick={() => {
             setSelectedVehicle(null)
             setSelectedDestination(null)
-            setVehicleSearchQuery('')
             setSearchResults([])
             setSearching(false)
             setSearchError(null)
@@ -1093,13 +1196,11 @@ export default function QueueManagement() {
           setAddVehicleModalOpen(false)
           setSelectedVehicle(null)
           setSelectedDestination(null)
-          setVehicleSearchQuery('')
           setSearchResults([])
           setSearching(false)
           setSearchError(null)
           setVehicleAuthorizedStations([])
         }}
-        vehicleSearchQuery={vehicleSearchQuery}
         onSearchChange={handleSearchVehicles}
         searchResults={searchResults}
         searching={searching}
@@ -1127,7 +1228,6 @@ export default function QueueManagement() {
                   onClick={() => {
                     setDayPassModalOpen(false)
                     setSelectedDayPassVehicle(null)
-                    setDayPassSearchQuery('')
                     setDayPassSearchResults([])
                     setDayPassSearching(false)
                     setDayPassSearchError(null)
@@ -1147,7 +1247,7 @@ export default function QueueManagement() {
                       type="text"
                       placeholder="Rechercher par plaque d'immatriculation..."
                       value={dayPassSearchQuery}
-                      onChange={(e) => handleDayPassSearch(e.target.value)}
+                      onChange={(e) => handleDayPassSearchChange(e.target.value)}
                       autoFocus
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
                     />
@@ -1179,7 +1279,6 @@ export default function QueueManagement() {
                       onClick={() => {
                         setDayPassModalOpen(false)
                         setSelectedDayPassVehicle(null)
-                        setDayPassSearchQuery('')
                         setDayPassSearchResults([])
                         setDayPassSearching(false)
                         setDayPassSearchError(null)
@@ -1277,7 +1376,6 @@ export default function QueueManagement() {
                       onClick={() => {
                         setDayPassModalOpen(false)
                         setSelectedDayPassVehicle(null)
-                        setDayPassSearchQuery('')
                         setDayPassSearchResults([])
                         setDayPassSearching(false)
                         setDayPassSearchError(null)
@@ -1320,20 +1418,7 @@ export default function QueueManagement() {
                   type="text"
                   placeholder="Rechercher par immatriculation..."
                   value={tripsSearch}
-                  onChange={async (e) => {
-                    const val = e.target.value
-                    setTripsSearch(val)
-                    setLoadingTrips(true)
-                    try {
-                      const response = await listTodayTrips(val.trim())
-                      setTrips(Array.isArray(response.data) ? response.data : [])
-                    } catch (error) {
-                      console.error('Failed to search trips:', error)
-                      setTrips([])
-                    } finally {
-                      setLoadingTrips(false)
-                    }
-                  }}
+                  onChange={(e) => handleExitPassSearchChange(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500"
                   autoFocus
                 />
