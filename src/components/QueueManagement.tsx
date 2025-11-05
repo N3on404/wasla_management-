@@ -636,11 +636,8 @@ export default function QueueManagement() {
       
       if (response.data?.dayPassStatus === "created" && response.data?.dayPass) {
         const dayPassData = response.data.dayPass
-        // Get the price from the selected destination (already stored in selectedDestination.basePrice)
-        // or fallback to finding it in summaries, or use the day pass price
-        const dayPassPrice = selectedDestination?.basePrice && selectedDestination.basePrice > 0
-          ? selectedDestination.basePrice
-          : (dayPassData.price && dayPassData.price > 0 ? dayPassData.price : 2.0)
+        // Day pass price is always 2.0 TND regardless of route price
+        const dayPassPrice = 2.0
         
         console.log('DEBUG Day Pass - Price resolution:', {
           selectedDestinationPrice: selectedDestination?.basePrice,
@@ -944,16 +941,11 @@ export default function QueueManagement() {
       const staffName = staffInfo ? `${staffInfo.firstName} ${staffInfo.lastName}` : 'Unknown'
       
       const dayPass = vehicleWithDayPass.dayPass
-      // Get the price from the destination, fallback to day pass price
-      const destinationSummary = summaries.find(s => s.destinationId === dayPass.destinationId)
-      const dayPassPrice = (destinationSummary?.basePrice && destinationSummary.basePrice > 0)
-        ? destinationSummary.basePrice
-        : (dayPass.price && dayPass.price > 0 ? dayPass.price : 2.0)
+      // Day pass price is always 2.0 TND regardless of route price
+      const dayPassPrice = 2.0
       
       console.log('DEBUG Day Pass Printer - Price resolution:', {
         dayPassDestinationId: dayPass.destinationId,
-        foundSummary: destinationSummary,
-        summaryBasePrice: destinationSummary?.basePrice,
         dayPassPriceField: dayPass.price,
         resolvedPrice: dayPassPrice
       })
